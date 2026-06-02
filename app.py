@@ -3,8 +3,18 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-# --- CONFIGURACIÓN DE BI ---
-st.set_page_config(page_title="BI - Control de Operaciones", layout="wide", page_icon="📊")
+# --- CONFIGURACIÓN DE BI (PRICE SHOES STYLE) ---
+st.set_page_config(page_title="Price Shoes - Control Operativo", layout="wide", page_icon="👟")
+
+# Estilo CSS Inyectado para forzar la identidad de marca (Rosa Institucional y Negro Corporativo)
+st.markdown("""
+    <style>
+    .reportview-container { background-color: #FFFFFF; }
+    h1 { color: #000000 !important; font-family: 'Arial Black', Gadget, sans-serif; }
+    h4 { color: #111111 !important; font-weight: bold; }
+    div[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: bold; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- DATASET CONSOLIDADO DEL PDF ---
 @st.cache_data
@@ -55,7 +65,7 @@ def get_operational_data():
     df = pd.DataFrame(data)
     df['Fecha'] = pd.to_datetime(df['Fecha'])
 
-    # Métricas estándar calculadas del reporte de origen
+    # Métricas de negocio
     df['Total_Ingresos'] = df['Fis_Aduana'] + df['Muertos'] + df['Cajas']
     df['Eficiencia_Recorridos'] = (df['Real_Rec'] / df['Meta_Rec']) * 100
     df['Utilizacion_Habilitado'] = (
@@ -63,7 +73,7 @@ def get_operational_data():
         .replace([float('inf'), -float('inf')], 0)
         .fillna(0) * 100
     )
-    # NUEVA COLUMNA: % Ubicado calculado vectorialmente para evitar divisiones entre cero
+    # % Ubicado (Eficiencia de salida a piso sobre lo recolectado)
     df['Porcentaje_Ubicado'] = (
         (df['Ubicadas'] / df['Recolectadas'])
         .replace([float('inf'), -float('inf')], 0)
@@ -73,19 +83,20 @@ def get_operational_data():
 
 df = get_operational_data()
 
-# --- INTERFAZ ---
-st.title("📊 Panel Control Operativo de Cambios y Muertos")
-st.markdown("**Periodo:** *Semana 21 (25 al 31 de Mayo de 2026)*")
+# --- HEADER DE MARCA ---
+st.title("👟 PRICE SHOES · Business Intelligence")
+st.markdown("<p style='color:#E6007E; font-weight:bold; margin-top:-15px;'>MÓDULO DE CONTROL: INDICADORES DE ACONDICIONAMIENTO (SEM 21)</p>", unsafe_allow_html=True)
+st.divider()
 
-# Sidebar
-st.sidebar.markdown("### 🎛️ Filtros de Control")
-tienda = st.sidebar.selectbox("Seleccionar Sucursal", ["Todas las Tiendas"] + list(df['Tienda'].unique()))
+# --- FILTROS SIDEBAR ---
+st.sidebar.markdown("### 🎛️ Filtros de Operación")
+tienda = st.sidebar.selectbox("Sucursal / Almacén", ["Todas las Tiendas"] + list(df['Tienda'].unique()))
 
 min_date = df['Fecha'].min().date()
 max_date = df['Fecha'].max().date()
 fecha_rango = st.sidebar.date_input("Rango Temporal", [min_date, max_date])
 
-# Filtrado Dinámico
+# Aplicar filtros
 df_filtered = df.copy()
 if tienda != "Todas las Tiendas":
     df_filtered = df_filtered[df_filtered['Tienda'] == tienda]
@@ -94,98 +105,26 @@ if len(fecha_rango) == 2:
     start_date, end_date = fecha_rango
     df_filtered = df_filtered[(df_filtered['Fecha'].dt.date >= start_date) & (df_filtered['Fecha'].dt.date <= end_date)]
 
-# --- TARJETAS KPI CON COLORIZACIÓN DINÁMICA ---
+# --- TARJETAS KPI ESTILO COMPAÑÍA (ALTO IMPACTO) ---
 if not df_filtered.empty:
     kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
     with kpi_col1:
-        st.markdown("<div style='padding:15px; border-radius:10px; background-color:#EBF5FB; border-left: 5px solid #2980B9;'><strong>Total Ingresos</strong><br><span style='font-size:24px; font-weight:bold; color:#1F618D;'>{:,}</span></div>".format(df_filtered['Total_Ingresos'].sum()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#111111; border-top: 4px solid #E6007E; color:white;'><strong>Pzas Ingresadas (Total)</strong><br><span style='font-size:26px; font-weight:bold; color:#FFFFFF;'>{:,}</span></div>".format(df_filtered['Total_Ingresos'].sum()), unsafe_allow_html=True)
     with kpi_col2:
-        st.markdown("<div style='padding:15px; border-radius:10px; background-color:#E8F8F5; border-left: 5px solid #117A65;'><strong>Promedio Eficiencia Rec.</strong><br><span style='font-size:24px; font-weight:bold; color:#117A65;'>{:.1f}%</span></div>".format(df_filtered['Eficiencia_Recorridos'].mean()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#FDF2F8; border-top: 4px solid #E6007E; color:black;'><strong>Eficiencia Recorridos</strong><br><span style='font-size:26px; font-weight:bold; color:#E6007E;'>{:.1f}%</span></div>".format(df_filtered['Eficiencia_Recorridos'].mean()), unsafe_allow_html=True)
     with kpi_col3:
-        st.markdown("<div style='padding:15px; border-radius:10px; background-color:#FEF9E7; border-left: 5px solid #F1C40F;'><strong>Piezas en Piso (Ubicadas)</strong><br><span style='font-size:24px; font-weight:bold; color:#9A7D0A;'>{:,}</span></div>".format(df_filtered['Ubicadas'].sum()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#FDF2F8; border-top: 4px solid #000000; color:black;'><strong>Unidades Ubicadas (Piso)</strong><br><span style='font-size:26px; font-weight:bold; color:#111111;'>{:,}</span></div>".format(df_filtered['Ubicadas'].sum()), unsafe_allow_html=True)
     with kpi_col4:
         diff_aduana = df_filtered['Fis_Aduana'].sum() - df_filtered['Sis_Aduana'].sum()
-        bg_color = "#FDEDEC" if diff_aduana < 0 else "#E8F8F5"
-        border_color = "#C0392B" if diff_aduana < 0 else "#27AE60"
-        text_color = "#7B241C" if diff_aduana < 0 else "#1E8449"
-        st.markdown(f"<div style='padding:15px; border-radius:10px; background-color:{bg_color}; border-left: 5px solid {border_color};'><strong>Desviación Aduana (Fís vs Sis)</strong><br><span style='font-size:24px; font-weight:bold; color:{text_color};'>{diff_aduana:+,}</span></div>", unsafe_allow_html=True)
+        status_color = "#2ECC71" if diff_aduana >= 0 else "#E74C3C"
+        bg_card = "#EAFAF1" if diff_aduana >= 0 else "#FDEDEC"
+        st.markdown(f"<div style='padding:15px; border-radius:4px; background-color:{bg_card}; border-top: 4px solid {status_color}; color:black;'><strong>Desviación de Aduana</strong><br><span style='font-size:26px; font-weight:bold; color:{status_color};'>{diff_aduana:+,}</span></div>", unsafe_allow_html=True)
 
     st.write("")
 
-    # --- SECCIÓN GRÁFICA ALTO CONTRASTE ---
+    # --- CUADRO DE GRÁFICOS AVANZADOS ---
     col_izq, col_der = st.columns([3, 2])
 
     with col_izq:
-        st.markdown("#### 📈 Carga Operativa Temporal (Ingreso Diario vs Ubicación)")
-        df_trend = df_filtered.groupby("Fecha").sum().reset_index()
-        
-        fig_dual = go.Figure()
-        # Barras de ingresos en azul eléctrico para resaltar volumen
-        fig_dual.add_trace(go.Bar(
-            x=df_trend['Fecha'], y=df_trend['Total_Ingresos'],
-            name='Total Ingresos', marker_color='#2471A3', opacity=0.85
-        ))
-        # Línea de ubicación en verde vibrante para resaltar efectividad de meta
-        fig_dual.add_trace(go.Scatter(
-            x=df_trend['Fecha'], y=df_trend['Ubicadas'],
-            name='Piezas Ubicadas', mode='lines+markers',
-            line=dict(color='#2ECC71', width=4), marker=dict(size=8)
-        ))
-        fig_dual.update_layout(
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            margin=dict(l=10, r=10, t=30, b=10), hovermode="x unified", height=380
-        )
-        st.plotly_chart(fig_dual, use_container_width=True)
-
-    with col_der:
-        st.markdown("#### 🏆 KPIs de Productividad Promedio por Sucursal")
-        df_tienda = df_filtered.groupby("Tienda").mean().reset_index()
-        
-        fig_bar = go.Figure()
-        # Barras de eficiencia de recorridos en coral encendido
-        fig_bar.add_trace(go.Bar(
-            y=df_tienda['Tienda'], x=df_tienda['Eficiencia_Recorridos'],
-            name='% Eficiencia Recorridos', orientation='h', marker_color='#E74C3C'
-        ))
-        # Barras de ubicación porcentual en morado operativo
-        fig_bar.add_trace(go.Bar(
-            y=df_tienda['Tienda'], x=df_tienda['Porcentaje_Ubicado'],
-            name='% Promedio Ubicado', orientation='h', marker_color='#8E44AD'
-        ))
-        fig_bar.update_layout(
-            barmode='group', legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-            margin=dict(l=10, r=10, t=30, b=10), height=380
-        )
-        st.plotly_chart(fig_bar, use_container_width=True)
-
-    # --- TABLA DE AUDITORÍA CON MATRIZ DE COLOR EN LOS PORCENTAJES ---
-    st.markdown("#### 🔍 Matriz de Auditoría Operativa con Indicadores")
-    
-    # Formateamos la visualización final agregando barras de progreso de color directo a la tabla
-    st.dataframe(
-        df_filtered.sort_values("Fecha", ascending=False),
-        column_config={
-            "Fecha": st.column_config.DateColumn("Día de Operación"),
-            "Tienda": "Sucursal",
-            "Sis_Aduana": "Aduana (Sistema)",
-            "Fis_Aduana": "Aduana (Físico)",
-            "Muertos": "Muertos",
-            "Cajas": "Cajas",
-            "Total_Ingresos": "Ingresos Totales",
-            "Eficiencia_Recorridos": st.column_config.ProgressColumn(
-                "Eficiencia Recorridos", format="%.0f%%", min_value=0, max_value=280
-            ),
-            "Utilizacion_Habilitado": st.column_config.NumberColumn(
-                "Utilización Habilitado", format="%.1f%%"
-            ),
-            # NUEVA COLUMNA VISUALIZADA: % Ubicado mapeado como una barra de progreso morada/azul
-            "Porcentaje_Ubicado": st.column_config.ProgressColumn(
-                "% Ubicado (Salida)", format="%.0f%%", min_value=0, max_value=260
-            ),
-            "Ubicadas": "Unidades en Piso"
-        }, hide_index=True, use_container_width=True
-    )
-else:
-    st.warning("No hay registros disponibles para los filtros seleccionados actualmente.")
-
-st.info("Nota de BI: Las eficiencias superiores al 100% reflejan el procesamiento de rezagos acumulados de turnos anteriores.")
+        st.markdown("#### 📉 Flujo de Carga Temporal: Entradas vs Ubicación en Tienda")
+        df_
