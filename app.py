@@ -83,6 +83,8 @@ def get_operational_data():
     df['Porcentaje_Ubicado'] = ((df['Ubicadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     df['Porcentaje_Ubicado'] = df['Porcentaje_Ubicado'].clip(upper=100.0)
     
+    # Garantizar ordenamiento cronológico estricto
+    df = df.sort_values("Fecha")
     df['Dia_Texto'] = df['Fecha'].dt.strftime('%a %d')
     return df
 
@@ -110,6 +112,9 @@ if len(fecha_rango) == 2:
     start_date, end_date = fecha_rango
     df_filtered = df_filtered[(df_filtered['Fecha'].dt.date >= start_date) & (df_filtered['Fecha'].dt.date <= end_date)]
 
+# Preservar la lista secuencial de días filtrados para forzar el ordenamiento en el eje X
+lista_dias_ordenados = df_filtered.sort_values("Fecha")['Dia_Texto'].unique()
+
 # --- TARJETAS KPI DE INICIO ---
 if not df_filtered.empty:
     kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
@@ -127,10 +132,10 @@ if not df_filtered.empty:
     st.write("")
 
     # =========================================================================
-    # --- BLOQUE DE GRÁFICOS INTERACTIVOS (ALTURA REDUCIDA OTRO 10% Y NEGRILLAS) ---
+    # --- BLOQUE DE GRÁFICOS INTERACTIVOS ---
     # =========================================================================
 
-    # --- GRÁFICO 1 (Altura: 540px) ---
+    # --- GRÁFICO 1 ---
     st.markdown('<p class="graph-title">🎯 1. Eficiencia del Recorrido (Meta Objetivo 100%)</p>', unsafe_allow_html=True)
     df_line_data = df_filtered.sort_values("Fecha").copy()
     df_line_data['Eficiencia_Etiqueta'] = "<b>" + df_line_data['Eficiencia_Recorridos'].round(1).astype(str) + '%</b>'
@@ -152,14 +157,15 @@ if not df_filtered.empty:
         plot_bgcolor="white", paper_bgcolor="white", height=540,
         margin=dict(l=50, r=50, t=40, b=50), legend=dict(orientation="h", y=1.09, x=0, font=dict(size=13))
     )
-    fig_line.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día", title_font=dict(size=14))
+    fig_line.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día", title_font=dict(size=14),
+                          type='category', categoryorder='array', categoryarray=lista_dias_ordenados)
     fig_line.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="% Eficiencia Real", title_font=dict(size=14))
     st.plotly_chart(fig_line, use_container_width=True)
 
 
-    # --- GRÁFICO 2 (Altura: 540px) ---
+    # --- GRÁFICO 2 ---
     st.markdown('<p class="graph-title">📦 2. Volumen de Prendas: Habilitado vs Ingreso Total</p>', unsafe_allow_html=True)
-    df_daily_totals = df_filtered.groupby("Dia_Texto").sum(numeric_only=True).reset_index()
+    df_daily_totals = df_filtered.groupby(["Fecha", "Dia_Texto"]).sum(numeric_only=True).reset_index().sort_values("Fecha")
     df_daily_totals['Pct_Habilitado'] = (df_daily_totals['Habilitadas'] / df_daily_totals['Total_Ingresos'] * 100).fillna(0).round(1)
     df_daily_totals['Pct_Text'] = "<b>" + df_daily_totals['Pct_Habilitado'].astype(str) + '%</b>'
 
@@ -186,11 +192,12 @@ if not df_filtered.empty:
         yaxis=dict(title="Cantidad de Prendas (Barras)", title_font=dict(size=14), showgrid=True, gridcolor='#EFEFEF'),
         yaxis2=dict(title="% Real Habilitado (Línea)", title_font=dict(size=14), overlaying='y', side='right', range=[0, 130], showgrid=False)
     )
-    fig_grouped.update_xaxes(title="Día", title_font=dict(size=14))
+    fig_grouped.update_xaxes(title="Día", title_font=dict(size=14),
+                             type='category', categoryorder='array', categoryarray=lista_dias_ordenados)
     st.plotly_chart(fig_grouped, use_container_width=True)
 
 
-    # --- GRÁFICO 3 (Altura: 430px) ---
+    # --- GRÁFICO 3 ---
     st.markdown('<p class="graph-title">📊 3. Porcentaje de Ubicado (Efectividad Máxima en Piso)</p>', unsafe_allow_html=True)
     df_tienda = df_filtered.groupby("Tienda").mean(numeric_only=True).reset_index()
     fig_bar = go.Figure()
@@ -208,9 +215,8 @@ if not df_filtered.empty:
     st.plotly_chart(fig_bar, use_container_width=True)
 
 
-    # --- GRÁFICO 4 (Donas de Composición - Altura: 575px) ---
+    # --- GRÁFICO 4 ---
     st.markdown('<p class="graph-title">🍰 4. % de Participación en Composición de Ingresos (Por Sucursal)</p>', unsafe_allow_html=True)
-    
     tiendas_a_graficar = list(df_filtered['Tienda'].unique())
     
     for t_name in tiendas_a_graficar:
@@ -244,22 +250,27 @@ if not df_filtered.empty:
             st.info(f"La sucursal **{t_name}** no registró volúmenes de ingreso bruto en el rango seleccionado.")
 
 
-    # --- MATRIZ DE AUDITORÍA ---
+    # --- MATRIZ DE AUDITORÍA (COLUMNAS ACTUALIZADAS Y REORDENADAS) ---
     st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
     
     df_table = df_filtered.sort_values("Fecha", ascending=False).copy()
     df_table['Fecha'] = df_table['Fecha'].dt.strftime('%Y-%m-%d')
     
+    # Renombrado e intercambio de piezas en piso por piezas habilitadas
     df_table = df_table.rename(columns={
         "Sis_Aduana": "Aduana Sist.",
         "Fis_Aduana": "Aduana Fís.",
         "Total_Ingresos": "Total Ingresos",
         "Eficiencia_Recorridos": "Ef. Recorridos %",
-        "Porcentaje_Ubicado": "Ubicado %",
-        "Ubicadas": "Prendas Piso"
+        "Habilitadas": "Piezas Habilitadas",
+        "Porcentaje_Ubicado": "Ubicado %"
     })
     
-    cols_to_show = ["Fecha", "Tienda", "Aduana Sist.", "Aduana Fís.", "Muertos", "Cajas", "Total Ingresos", "Ef. Recorridos %", "Ubicado %", "Prendas Piso"]
+    # Estructura final con "Piezas Habilitadas" antes de "Ubicado %"
+    cols_to_show = [
+        "Fecha", "Tienda", "Aduana Sist.", "Aduana Fís.", "Muertos", "Cajas", 
+        "Total Ingresos", "Ef. Recorridos %", "Piezas Habilitadas", "Ubicado %"
+    ]
     
     def color_semaforo(val):
         try:
@@ -279,7 +290,7 @@ if not df_filtered.empty:
             "Aduana Sist.": "{:,}",
             "Aduana Fís.": "{:,}",
             "Total Ingresos": "{:,}",
-            "Prendas Piso": "{:,}"
+            "Piezas Habilitadas": "{:,}"
         })
 
     st.dataframe(styled_df, hide_index=True, use_container_width=True)
