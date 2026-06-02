@@ -3,17 +3,18 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-# --- CONFIGURACIÓN DE INTERFAZ CORPORATIVA ---
-st.set_page_config(page_title="Price Shoes - Operaciones Ropa", layout="wide", page_icon="👚")
+# --- CONFIGURACIÓN DE INTERFAZ GENERAL ---
+st.set_page_config(page_title="Price Shoes - Business Intelligence", layout="wide", page_icon="👚")
 
-# Forzar paleta corporativa mediante CSS (Azul #1F497D y Gris #D9D9D9)
+# Forzar estilos corporativos basados en tus capturas
 st.markdown("""
     <style>
     .reportview-container { background-color: #FFFFFF; }
-    h1 { color: #1F497D !important; font-family: 'Arial Black', Gadget, sans-serif; font-size: 30px !important; margin-bottom: 5px; }
+    .main-title { color: #000000 !important; font-family: 'Arial', sans-serif; font-size: 34px !important; font-weight: 800; margin-bottom: 0px; }
+    .sub-title { color: #E6007E !important; font-family: 'Arial', sans-serif; font-size: 15px !important; font-weight: bold; margin-top: -5px; letter-spacing: 0.5px; text-transform: uppercase; }
+    .graph-title { color: #1F497D !important; font-weight: bold; font-size: 16px; margin-top: 10px; margin-bottom: 15px; border-left: 4px solid #1F497D; padding-left: 8px; }
     div[data-testid="stMetricValue"] { font-size: 26px !important; font-weight: bold; color: #1F497D !important; }
-    /* Ajuste para evitar que los contenedores de gráficos colapsen */
-    div[data-testid="stColumn"] { padding: 10px !important; }
+    div[data-testid="stColumn"] { padding: 5px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -77,12 +78,12 @@ def get_operational_data():
 
 df = get_operational_data()
 
-# --- HEADER ---
-st.markdown("<h1>👚 PRICE SHOES • Operaciones ropa</h1>", unsafe_allow_html=True)
-st.markdown("<p style='color:#1F497D; font-size:16px; font-weight:bold; margin-top:-10px;'>Proceso de Muertos y cambios (Semana 21)</p>", unsafe_allow_html=True)
-st.markdown("<hr style='border: 0; height: 2px; background: #1F497D; margin-top:0px; margin-bottom:15px;'>", unsafe_allow_html=True)
+# --- HEADER FIEL A LA IDENTIDAD VISUAL ---
+st.markdown('<p class="main-title">👚 PRICE SHOES • Business Intelligence</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">MÓDULO: OPERACIONES ROPA – CONTROL DE ACONDICIONAMIENTO Y PISO (SEM 21)</p>', unsafe_allow_html=True)
+st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
 
-# --- FILTROS SIDEBAR ---
+# --- SIDEBAR ---
 st.sidebar.markdown("### 🎛️ Filtros de Operación")
 tienda = st.sidebar.selectbox("Sucursal / Almacén Ropa", ["Todas las Tiendas"] + list(df['Tienda'].unique()))
 
@@ -90,7 +91,7 @@ min_date = df['Fecha'].min().date()
 max_date = df['Fecha'].max().date()
 fecha_rango = st.sidebar.date_input("Rango Temporal", [min_date, max_date])
 
-# Aplicar filtros
+# Filtrado de DataFrame
 df_filtered = df.copy()
 if tienda != "Todas las Tiendas":
     df_filtered = df_filtered[df_filtered['Tienda'] == tienda]
@@ -115,64 +116,63 @@ if not df_filtered.empty:
 
     st.write("")
 
-    # --- BLOQUE DE GRÁFICOS COMPLETO (REDISEÑO TOTAL DE ESPACIOS) ---
+    # --- FILA DE GRÁFICOS 1: COMPORTAMIENTO TEMPORAL ---
     col1, col2 = st.columns(2)
 
     with col1:
+        st.markdown('<p class="graph-title">📈 Tendencia de Eficiencia de Recorridos por Día</p>', unsafe_allow_html=True)
         fig_line = px.line(
             df_filtered.sort_values("Fecha"), 
             x="Dia_Texto", y="Eficiencia_Recorridos", color="Tienda",
             markers=True,
             color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
         )
-        # Título integrado internamente en Plotly para evitar cortes CSS
         fig_line.update_layout(
-            title={"text": "📈 Tendencia de Eficiencia de Recorridos por Día", "font": {"size": 16, "color": "#1F497D"}},
-            plot_bgcolor="white", paper_bgcolor="white", height=420,
-            margin=dict(l=40, r=20, t=60, b=40), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
+            plot_bgcolor="white", paper_bgcolor="white", height=350,
+            margin=dict(l=40, r=20, t=10, b=40), legend=dict(orientation="h", y=1.15, x=0)
         )
-        fig_line.update_xaxes(showgrid=True, gridcolor='#D9D9D9', title="Día del Proceso")
-        fig_line.update_yaxes(showgrid=True, gridcolor='#D9D9D9', title="% Eficiencia")
+        fig_line.update_xaxes(showgrid=True, gridcolor='#EFEFEFEF', title="Día del Proceso")
+        fig_line.update_yaxes(showgrid=True, gridcolor='#EFEFEFEF', title="% Eficiencia")
         st.plotly_chart(fig_line, use_container_width=True)
 
     with col2:
+        st.markdown('<p class="graph-title">📦 Volumen Total de Ingresos (Carga Operativa por Día)</p>', unsafe_allow_html=True)
         fig_stack = px.bar(
             df_filtered.sort_values("Fecha"),
             x="Dia_Texto", y="Total_Ingresos", color="Tienda",
             color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
         )
         fig_stack.update_layout(
-            title={"text": "📦 Volumen Total de Ingresos (Carga Operativa por Día)", "font": {"size": 16, "color": "#1F497D"}},
-            barmode="stack", plot_bgcolor="white", paper_bgcolor="white", height=420,
-            margin=dict(l=40, r=20, t=60, b=40), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
+            barmode="stack", plot_bgcolor="white", paper_bgcolor="white", height=350,
+            margin=dict(l=40, r=20, t=10, b=40), legend=dict(orientation="h", y=1.15, x=0)
         )
-        fig_stack.update_xaxes(showgrid=True, gridcolor='#D9D9D9', title="Día")
-        fig_stack.update_yaxes(showgrid=True, gridcolor='#D9D9D9', title="Prendas Totales")
+        fig_stack.update_xaxes(showgrid=True, gridcolor='#EFEFEFEF', title="Día")
+        fig_stack.update_yaxes(showgrid=True, gridcolor='#EFEFEFEF', title="Prendas Totales")
         st.plotly_chart(fig_stack, use_container_width=True)
 
-    # --- SEGUNDA FILA DE GRÁFICOS ---
+    # --- FILA DE GRÁFICOS 2: EFICIENCIAS COMERCIALES ---
     col3, col4 = st.columns(2)
 
     with col3:
+        st.markdown('<p class="graph-title">🎯 Porcentaje de Éxito Comercial de Ubicación</p>', unsafe_allow_html=True)
         df_tienda = df_filtered.groupby("Tienda").mean(numeric_only=True).reset_index()
+        
+        # Corregido: Enfocado únicamente en la métrica porcentual para evitar desproporciones numéricas
         fig_bar = go.Figure()
         fig_bar.add_trace(go.Bar(
-            y=df_tienda['Tienda'], x=df_tienda['Eficiencia_Recorridos'],
-            name='% Eficiencia Recorridos', orientation='h', marker_color='#1F497D'
-        ))
-        fig_bar.add_trace(go.Bar(
             y=df_tienda['Tienda'], x=df_tienda['Porcentaje_Ubicado'],
-            name='% Comercial Ubicado', orientation='h', marker_color='#7F97B2'
+            name='% Prendas Ubicadas en Piso', orientation='h', marker_color='#1F497D',
+            text=[f"{val:.1f}%" for val in df_tienda['Porcentaje_Ubicado']], textposition='inside'
         ))
         fig_bar.update_layout(
-            title={"text": "🎯 Eficiencia Global Promedio por Sucursal", "font": {"size": 16, "color": "#1F497D"}},
-            barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=420,
-            margin=dict(l=40, r=20, t=60, b=40), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
+            plot_bgcolor="white", paper_bgcolor="white", height=350,
+            margin=dict(l=40, r=20, t=10, b=40), legend=dict(orientation="h", y=1.15, x=0)
         )
-        fig_bar.update_xaxes(showgrid=True, gridcolor='#D9D9D9')
+        fig_bar.update_xaxes(showgrid=True, gridcolor='#EFEFEFEF', title="% Efectividad")
         st.plotly_chart(fig_bar, use_container_width=True)
 
     with col4:
+        st.markdown('<p class="graph-title">🔍 Dispersión: Relación de Prendas Ubicadas vs Éxito de Piso</p>', unsafe_allow_html=True)
         fig_scatter = px.scatter(
             df_filtered, x="Ubicadas", y="Porcentaje_Ubicado", color="Tienda", 
             size="Total_Ingresos", text="Dia_Texto",
@@ -180,38 +180,50 @@ if not df_filtered.empty:
         )
         fig_scatter.update_traces(textposition='top center')
         fig_scatter.update_layout(
-            title={"text": "🔍 Dispersión: Relación de Prendas Ubicadas vs Éxito de Piso", "font": {"size": 16, "color": "#1F497D"}},
-            plot_bgcolor="white", paper_bgcolor="white", height=420,
-            margin=dict(l=40, r=20, t=60, b=40), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
+            plot_bgcolor="white", paper_bgcolor="white", height=350,
+            margin=dict(l=40, r=20, t=10, b=40), legend=dict(orientation="h", y=1.15, x=0)
         )
-        fig_scatter.update_xaxes(showgrid=True, gridcolor='#D9D9D9', title="Cantidad de Prendas en Piso")
-        fig_scatter.update_yaxes(showgrid=True, gridcolor='#D9D9D9', title="% Éxito Ubicación")
+        fig_scatter.update_xaxes(showgrid=True, gridcolor='#EFEFEFEF', title="Cantidad de Prendas en Piso")
+        fig_scatter.update_yaxes(showgrid=True, gridcolor='#EFEFEFEF', title="% Éxito Ubicación")
         st.plotly_chart(fig_scatter, use_container_width=True)
 
-    # --- MATRIZ DE AUDITORÍA ---
-    st.markdown("#### 🔍 Matriz General de Auditoría Operativa")
-    st.dataframe(
-        df_filtered.sort_values("Fecha", ascending=False),
-        column_config={
-            "Fecha": st.column_config.DateColumn("Fecha Operación"),
-            "Tienda": "Sucursal",
-            "Sis_Aduana": "Aduana (Sist)",
-            "Fis_Aduana": "Aduana (Fís)",
-            "Muertos": "Muertos",
-            "Cajas": "Cajas",
-            "Total_Ingresos": "Total Ingresos",
-            "Eficiencia_Recorridos": st.column_config.ProgressColumn(
-                "Eficiencia Recorridos", format="%.0f%%", min_value=0, max_value=280, color="gray"
-            ),
-            "Utilizacion_Habilitado": st.column_config.NumberColumn(
-                "Utilización Habilitado", format="%.1f%%"
-            ),
-            "Porcentaje_Ubicado": st.column_config.ProgressColumn(
-                "% Ubicado (Éxito)", format="%.0f%%", min_value=0, max_value=260, color="#1F497D"
-            ),
-            "Ubicadas": "Prendas en Piso"
-        }, hide_index=True, use_container_width=True
-    )
+    # --- MATRIZ DE AUDITORÍA CON COLOR (STYLING) ---
+    st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
+    
+    # Preparar el dataframe para mostrar con estilos
+    df_table = df_filtered.sort_values("Fecha", ascending=False).copy()
+    
+    # Formatear la fecha a string para una visualización limpia
+    df_table['Fecha'] = df_table['Fecha'].dt.strftime('%Y-%m-%d')
+    
+    # Renombrar columnas para la tabla corporativa
+    df_table = df_table.rename(columns={
+        "Sis_Aduana": "Aduana Sist.",
+        "Fis_Aduana": "Aduana Fís.",
+        "Total_Ingresos": "Total Ingresos",
+        "Eficiencia_Recorridos": "Ef. Recorridos %",
+        "Porcentaje_Ubicado": "Ubicado %",
+        "Ubicadas": "Prendas Piso"
+    })
+    
+    # Columnas a mostrar
+    cols_to_show = ["Fecha", "Tienda", "Aduana Sist.", "Aduana Fís.", "Muertos", "Cajas", "Total Ingresos", "Ef. Recorridos %", "Ubicado %", "Prendas Piso"]
+    
+    # Aplicar mapa de color degradado a las columnas de KPIs numéricos claves
+    styled_df = df_table[cols_to_show].style\
+        .background_gradient(subset=["Ef. Recorridos %"], cmap="Blues")\
+        .background_gradient(subset=["Ubicado %"], cmap="Purples")\
+        .format({
+            "Ef. Recorridos %": "{:.1f}%",
+            "Ubicado %": "{:.1f}%",
+            "Aduana Sist.": "{:,}",
+            "Aduana Fís.": "{:,}",
+            "Total Ingresos": "{:,}",
+            "Prendas Piso": "{:,}"
+        })
+
+    st.dataframe(styled_df, hide_index=True, use_container_width=True)
+
 else:
     st.warning("No hay registros disponibles para los filtros seleccionados actualmente.")
 
