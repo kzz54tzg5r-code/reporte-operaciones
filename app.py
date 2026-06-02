@@ -185,16 +185,14 @@ if not df_filtered.empty:
             "Muertos": "Muertos",
             "Cajas": "Cajas",
             "Total_Ingresos": "Total Ingresos",
-            # Barra de progreso en Negro para cumplimiento de rutas
             "Eficiencia_Recorridos": st.column_config.ProgressColumn(
-                "Eficiencia Recorridos", format="%.0f%%", min_value=0, max_value=280, color="dark"
+                "Eficiencia Recorridos", format="%.0f%%", min_value=0, max_value=280, color="gray"
             ),
             "Utilizacion_Habilitado": st.column_config.NumberColumn(
                 "Utilización Habilitado", format="%.1f%%"
             ),
-            # Nueva columna % Ubicado con barra fucsia brillante de Price Shoes
             "Porcentaje_Ubicado": st.column_config.ProgressColumn(
-                "% Ubicado (Éxito de Piso)", format="%.0f%%", min_value=0, max_value=260, color="pink"
+                "% Ubicado (Éxito de Piso)", format="%.0f%%", min_value=0, max_value=260, color="#E6007E"
             ),
             "Ubicadas": "Prendas Totales en Piso"
         }, hide_index=True, use_container_width=True
