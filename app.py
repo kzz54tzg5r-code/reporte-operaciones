@@ -71,7 +71,7 @@ def get_operational_data():
     df['Utilizacion_Habilitado'] = ((df['Habilitadas'] / df['Recolectadas']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     df['Porcentaje_Ubicado'] = ((df['Ubicadas'] / df['Recolectadas']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     
-    # Columna auxiliar de texto para los ejes de los gráficos
+    # Texto formateado para los ejes temporales
     df['Dia_Texto'] = df['Fecha'].dt.strftime('%a %d')
     return df
 
@@ -121,7 +121,6 @@ if not df_filtered.empty:
 
     with col1:
         st.markdown("#### 📈 Tendencia de Eficiencia de Recorridos por Día")
-        # Gráfico por día y tienda usando una paleta derivada del azul ejecutivo
         fig_line = px.line(
             df_filtered.sort_values("Fecha"), 
             x="Dia_Texto", y="Eficiencia_Recorridos", color="Tienda",
@@ -138,7 +137,6 @@ if not df_filtered.empty:
 
     with col2:
         st.markdown("#### 📦 Volumen Total de Ingresos (Carga Operativa por Día)")
-        # Gráfico de barras apiladas por día y tienda
         fig_stack = px.bar(
             df_filtered.sort_values("Fecha"),
             x="Dia_Texto", y="Total_Ingresos", color="Tienda",
@@ -157,7 +155,8 @@ if not df_filtered.empty:
 
     with col3:
         st.markdown("#### 🎯 Eficiencia Global por Sucursal")
-        df_tienda = df_filtered.groupby("Tienda").mean().reset_index()
+        # CORREGIDO: Agregado numeric_only=True para resolver el TypeError con versiones nuevas de Pandas
+        df_tienda = df_filtered.groupby("Tienda").mean(numeric_only=True).reset_index()
         fig_bar = go.Figure()
         fig_bar.add_trace(go.Bar(
             y=df_tienda['Tienda'], x=df_tienda['Eficiencia_Recorridos'],
@@ -176,7 +175,6 @@ if not df_filtered.empty:
 
     with col4:
         st.markdown("#### 🔍 Dispersión: Relación de Prendas Ubicadas vs Éxito de Piso")
-        # Muestra la relación entre volumen absoluto puesto en piso y el porcentaje relativo de éxito
         fig_scatter = px.scatter(
             df_filtered, x="Ubicadas", y="Porcentaje_Ubicado", color="Tienda", 
             size="Total_Ingresos", text="Dia_Texto",
