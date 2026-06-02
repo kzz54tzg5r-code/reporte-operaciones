@@ -127,13 +127,13 @@ if not df_filtered.empty:
     st.write("")
 
     # =========================================================================
-    # --- BLOQUE DE GRÁFICOS INTERACTIVOS (ALTURA REDUCIDA EN UN 20%) ---
+    # --- BLOQUE DE GRÁFICOS INTERACTIVOS (ALTURA REDUCIDA OTRO 10% Y NEGRILLAS) ---
     # =========================================================================
 
-    # --- GRÁFICO 1 (Altura: 600px) ---
+    # --- GRÁFICO 1 (Altura: 540px) ---
     st.markdown('<p class="graph-title">🎯 1. Eficiencia del Recorrido (Meta Objetivo 100%)</p>', unsafe_allow_html=True)
     df_line_data = df_filtered.sort_values("Fecha").copy()
-    df_line_data['Eficiencia_Etiqueta'] = df_line_data['Eficiencia_Recorridos'].round(1).astype(str) + '%'
+    df_line_data['Eficiencia_Etiqueta'] = "<b>" + df_line_data['Eficiencia_Recorridos'].round(1).astype(str) + '%</b>'
     
     fig_line = px.line(
         df_line_data, 
@@ -142,59 +142,73 @@ if not df_filtered.empty:
         color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
     )
     fig_line.add_hline(y=100.0, line_dash="dash", line_color="#C0392B", annotation_text="Meta 100%", annotation_position="top left")
-    fig_line.update_traces(line=dict(width=4.5), marker=dict(size=12), textposition="top center")
+    fig_line.update_traces(
+        line=dict(width=4.5), 
+        marker=dict(size=12), 
+        textposition="top center",
+        textfont=dict(size=12, color="black")
+    )
     fig_line.update_layout(
-        plot_bgcolor="white", paper_bgcolor="white", height=600,
-        margin=dict(l=50, r=50, t=40, b=50), legend=dict(orientation="h", y=1.08, x=0, font=dict(size=13))
+        plot_bgcolor="white", paper_bgcolor="white", height=540,
+        margin=dict(l=50, r=50, t=40, b=50), legend=dict(orientation="h", y=1.09, x=0, font=dict(size=13))
     )
     fig_line.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día", title_font=dict(size=14))
     fig_line.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="% Eficiencia Real", title_font=dict(size=14))
     st.plotly_chart(fig_line, use_container_width=True)
 
 
-    # --- GRÁFICO 2 (Altura: 600px) ---
+    # --- GRÁFICO 2 (Altura: 540px) ---
     st.markdown('<p class="graph-title">📦 2. Volumen de Prendas: Habilitado vs Ingreso Total</p>', unsafe_allow_html=True)
     df_daily_totals = df_filtered.groupby("Dia_Texto").sum(numeric_only=True).reset_index()
     df_daily_totals['Pct_Habilitado'] = (df_daily_totals['Habilitadas'] / df_daily_totals['Total_Ingresos'] * 100).fillna(0).round(1)
-    df_daily_totals['Pct_Text'] = df_daily_totals['Pct_Habilitado'].astype(str) + '%'
+    df_daily_totals['Pct_Text'] = "<b>" + df_daily_totals['Pct_Habilitado'].astype(str) + '%</b>'
 
     fig_grouped = go.Figure()
-    fig_grouped.add_trace(go.Bar(name='Ingreso Total', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Total_Ingresos'], marker_color='#1F497D', yaxis='y'))
-    fig_grouped.add_trace(go.Bar(name='Prendas Habilitadas', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Habilitadas'], marker_color='#7F97B2', yaxis='y'))
+    fig_grouped.add_trace(go.Bar(
+        name='Ingreso Total', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Total_Ingresos'], 
+        marker_color='#1F497D', yaxis='y',
+        text=[f"<b>{int(val):,}</b>" for val in df_daily_totals['Total_Ingresos']], textposition='outside', textfont=dict(size=12)
+    ))
+    fig_grouped.add_trace(go.Bar(
+        name='Prendas Habilitadas', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Habilitadas'], 
+        marker_color='#7F97B2', yaxis='y',
+        text=[f"<b>{int(val):,}</b>" for val in df_daily_totals['Habilitadas']], textposition='outside', textfont=dict(size=12)
+    ))
     fig_grouped.add_trace(go.Scatter(
         name='% Real Habilitado', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Pct_Habilitado'],
         mode='lines+markers+text', text=df_daily_totals['Pct_Text'], textposition='top center',
-        line=dict(color='#E6007E', width=5), marker=dict(size=12, symbol='diamond'), yaxis='y2'
+        line=dict(color='#E6007E', width=5), marker=dict(size=12, symbol='diamond'), yaxis='y2',
+        textfont=dict(size=13, color="#E6007E")
     ))
     fig_grouped.update_layout(
-        barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=600,
-        margin=dict(l=50, r=60, t=40, b=50), legend=dict(orientation="h", y=1.08, x=0, font=dict(size=13)),
+        barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=540,
+        margin=dict(l=50, r=60, t=40, b=50), legend=dict(orientation="h", y=1.09, x=0, font=dict(size=13)),
         yaxis=dict(title="Cantidad de Prendas (Barras)", title_font=dict(size=14), showgrid=True, gridcolor='#EFEFEF'),
-        yaxis2=dict(title="% Real Habilitado (Línea)", title_font=dict(size=14), overlaying='y', side='right', range=[0, 120], showgrid=False)
+        yaxis2=dict(title="% Real Habilitado (Línea)", title_font=dict(size=14), overlaying='y', side='right', range=[0, 130], showgrid=False)
     )
     fig_grouped.update_xaxes(title="Día", title_font=dict(size=14))
     st.plotly_chart(fig_grouped, use_container_width=True)
 
 
-    # --- GRÁFICO 3 (Altura: 480px) ---
+    # --- GRÁFICO 3 (Altura: 430px) ---
     st.markdown('<p class="graph-title">📊 3. Porcentaje de Ubicado (Efectividad Máxima en Piso)</p>', unsafe_allow_html=True)
     df_tienda = df_filtered.groupby("Tienda").mean(numeric_only=True).reset_index()
     fig_bar = go.Figure()
     fig_bar.add_trace(go.Bar(
         y=df_tienda['Tienda'], x=df_tienda['Porcentaje_Ubicado'],
         orientation='h', marker_color='#5B9BD5',
-        text=[f"{val:.1f}%" for val in df_tienda['Porcentaje_Ubicado']], textposition='inside',
-        textfont=dict(size=14)
+        text=[f"<b>{val:.1f}%</b>" for val in df_tienda['Porcentaje_Ubicado']], textposition='inside',
+        textfont=dict(size=13, color="white")
     ))
     fig_bar.update_layout(
-        plot_bgcolor="white", paper_bgcolor="white", height=480,
+        plot_bgcolor="white", paper_bgcolor="white", height=430,
         margin=dict(l=80, r=50, t=30, b=50)
     )
     fig_bar.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="% Efectividad Real Comercial", title_font=dict(size=14), range=[0, 105])
     st.plotly_chart(fig_bar, use_container_width=True)
 
 
-    # --- GRÁFICO 4 (Donas de Composición - Altura: 640px) ---
+    # --- GRÁFICO 4 (Donas de Composición - Altura: 575px) ---
     st.markdown('<p class="graph-title">🍰 4. % de Participación en Composición de Ingresos (Por Sucursal)</p>', unsafe_allow_html=True)
     
     tiendas_a_graficar = list(df_filtered['Tienda'].unique())
@@ -214,12 +228,14 @@ if not df_filtered.empty:
             fig_donut_t = go.Figure(data=[go.Pie(
                 labels=labels, values=values, hole=.45, 
                 marker=dict(colors=['#1F497D', '#E6007E', '#A6A6A6']),
-                textinfo='label+percent', textfont=dict(size=14)
+                textinfo='label+percent',
+                texttemplate="<b>%{label}<br>%{percent}</b>",
+                textfont=dict(size=13)
             )])
             
             fig_donut_t.update_layout(
-                title=dict(text=f"Distribución Operativa de Ingresos - {t_name.upper()}", font=dict(size=18, color="#1F497D", family="Arial"), x=0.02),
-                plot_bgcolor="white", paper_bgcolor="white", height=640,
+                title=dict(text=f"Distribución Operativa de Ingresos - {t_name.upper()}", font=dict(size=17, color="#1F497D", family="Arial"), x=0.02),
+                plot_bgcolor="white", paper_bgcolor="white", height=575,
                 margin=dict(l=50, r=50, t=80, b=50), 
                 legend=dict(orientation="h", y=-0.05, x=0.0, font=dict(size=13))
             )
