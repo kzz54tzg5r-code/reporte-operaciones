@@ -127,10 +127,10 @@ if not df_filtered.empty:
     st.write("")
 
     # =========================================================================
-    # --- BLOQUE DE GRÁFICOS INTERACTIVOS (MAXIMIZADOS A LA PANTALLA) ---
+    # --- BLOQUE DE GRÁFICOS INTERACTIVOS (ALTURA REDUCIDA EN UN 20%) ---
     # =========================================================================
 
-    # --- GRÁFICO 1 (Altura: 750px) ---
+    # --- GRÁFICO 1 (Altura: 600px) ---
     st.markdown('<p class="graph-title">🎯 1. Eficiencia del Recorrido (Meta Objetivo 100%)</p>', unsafe_allow_html=True)
     df_line_data = df_filtered.sort_values("Fecha").copy()
     df_line_data['Eficiencia_Etiqueta'] = df_line_data['Eficiencia_Recorridos'].round(1).astype(str) + '%'
@@ -144,15 +144,15 @@ if not df_filtered.empty:
     fig_line.add_hline(y=100.0, line_dash="dash", line_color="#C0392B", annotation_text="Meta 100%", annotation_position="top left")
     fig_line.update_traces(line=dict(width=4.5), marker=dict(size=12), textposition="top center")
     fig_line.update_layout(
-        plot_bgcolor="white", paper_bgcolor="white", height=750, # Altura maximizada
-        margin=dict(l=50, r=50, t=40, b=50), legend=dict(orientation="h", y=1.06, x=0, font=dict(size=13))
+        plot_bgcolor="white", paper_bgcolor="white", height=600,
+        margin=dict(l=50, r=50, t=40, b=50), legend=dict(orientation="h", y=1.08, x=0, font=dict(size=13))
     )
     fig_line.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día", title_font=dict(size=14))
     fig_line.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="% Eficiencia Real", title_font=dict(size=14))
     st.plotly_chart(fig_line, use_container_width=True)
 
 
-    # --- GRÁFICO 2 (Altura: 750px) ---
+    # --- GRÁFICO 2 (Altura: 600px) ---
     st.markdown('<p class="graph-title">📦 2. Volumen de Prendas: Habilitado vs Ingreso Total</p>', unsafe_allow_html=True)
     df_daily_totals = df_filtered.groupby("Dia_Texto").sum(numeric_only=True).reset_index()
     df_daily_totals['Pct_Habilitado'] = (df_daily_totals['Habilitadas'] / df_daily_totals['Total_Ingresos'] * 100).fillna(0).round(1)
@@ -167,8 +167,8 @@ if not df_filtered.empty:
         line=dict(color='#E6007E', width=5), marker=dict(size=12, symbol='diamond'), yaxis='y2'
     ))
     fig_grouped.update_layout(
-        barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=750, # Altura maximizada
-        margin=dict(l=50, r=60, t=40, b=50), legend=dict(orientation="h", y=1.06, x=0, font=dict(size=13)),
+        barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=600,
+        margin=dict(l=50, r=60, t=40, b=50), legend=dict(orientation="h", y=1.08, x=0, font=dict(size=13)),
         yaxis=dict(title="Cantidad de Prendas (Barras)", title_font=dict(size=14), showgrid=True, gridcolor='#EFEFEF'),
         yaxis2=dict(title="% Real Habilitado (Línea)", title_font=dict(size=14), overlaying='y', side='right', range=[0, 120], showgrid=False)
     )
@@ -176,7 +176,7 @@ if not df_filtered.empty:
     st.plotly_chart(fig_grouped, use_container_width=True)
 
 
-    # --- GRÁFICO 3 (Altura: 600px) ---
+    # --- GRÁFICO 3 (Altura: 480px) ---
     st.markdown('<p class="graph-title">📊 3. Porcentaje de Ubicado (Efectividad Máxima en Piso)</p>', unsafe_allow_html=True)
     df_tienda = df_filtered.groupby("Tienda").mean(numeric_only=True).reset_index()
     fig_bar = go.Figure()
@@ -187,14 +187,14 @@ if not df_filtered.empty:
         textfont=dict(size=14)
     ))
     fig_bar.update_layout(
-        plot_bgcolor="white", paper_bgcolor="white", height=600, # Altura incrementada para mejor lectura horizontal
+        plot_bgcolor="white", paper_bgcolor="white", height=480,
         margin=dict(l=80, r=50, t=30, b=50)
     )
     fig_bar.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="% Efectividad Real Comercial", title_font=dict(size=14), range=[0, 105])
     st.plotly_chart(fig_bar, use_container_width=True)
 
 
-    # --- GRÁFICO 4 (Donas de Composición - Altura: 800px) ---
+    # --- GRÁFICO 4 (Donas de Composición - Altura: 640px) ---
     st.markdown('<p class="graph-title">🍰 4. % de Participación en Composición de Ingresos (Por Sucursal)</p>', unsafe_allow_html=True)
     
     tiendas_a_graficar = list(df_filtered['Tienda'].unique())
@@ -219,7 +219,7 @@ if not df_filtered.empty:
             
             fig_donut_t.update_layout(
                 title=dict(text=f"Distribución Operativa de Ingresos - {t_name.upper()}", font=dict(size=18, color="#1F497D", family="Arial"), x=0.02),
-                plot_bgcolor="white", paper_bgcolor="white", height=800, # Altura maximizada para pantallas grandes
+                plot_bgcolor="white", paper_bgcolor="white", height=640,
                 margin=dict(l=50, r=50, t=80, b=50), 
                 legend=dict(orientation="h", y=-0.05, x=0.0, font=dict(size=13))
             )
