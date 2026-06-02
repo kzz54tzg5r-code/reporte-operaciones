@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 st.set_page_config(page_title="Price Shoes - Business Intelligence", layout="wide", page_icon="👚")
 
 # Estilos corporativos basados en la identidad visual de Price Shoes
+# Se añade el estilo personalizado para los encabezados de la matriz (Azul Énfasis 1 25% Oscuro -> #15335B)
 st.markdown("""
     <style>
     .reportview-container { background-color: #FFFFFF; }
@@ -14,6 +15,14 @@ st.markdown("""
     .sub-title { color: #E6007E !important; font-family: 'Arial', sans-serif; font-size: 15px !important; font-weight: bold; margin-top: -5px; letter-spacing: 0.5px; text-transform: uppercase; }
     .graph-title { color: #1F497D !important; font-weight: bold; font-size: 16px; margin-top: 25px; margin-bottom: 10px; border-left: 4px solid #1F497D; padding-left: 8px; }
     div[data-testid="stMetricValue"] { font-size: 26px !important; font-weight: bold; color: #1F497D !important; }
+    
+    /* Estilos para la Matriz de Auditoría (Azul Énfasis 1 25% Oscuro) */
+    .stDataFrame th {
+        background-color: #15335B !important;
+        color: #FFFFFF !important;
+        font-weight: bold !important;
+        text-align: center !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -66,12 +75,12 @@ def get_operational_data():
     df = pd.DataFrame(data)
     df['Fecha'] = pd.to_datetime(df['Fecha'])
 
-    # Métricas calculadas base
-    df['Total_Ingresos'] = df['Fis_Aduana'] + df['Muertos'] + df['Cajas']
+    # NUEVA REGLA MATEMÁTICA: Total Ingresos = Aduana Sistema + Muertos + Cajas
+    df['Total_Ingresos'] = df['Sis_Aduana'] + df['Muertos'] + df['Cajas']
+    
     df['Eficiencia_Recorridos'] = (df['Real_Rec'] / df['Meta_Rec']) * 100
     df['Utilizacion_Habilitado'] = ((df['Habilitadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     
-    # Capar el porcentaje de ubicación de forma lógica sobre el volumen de ingresos procesables
     df['Porcentaje_Ubicado'] = ((df['Ubicadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     df['Porcentaje_Ubicado'] = df['Porcentaje_Ubicado'].clip(upper=100.0)
     
@@ -80,7 +89,7 @@ def get_operational_data():
 
 df = get_operational_data()
 
-# --- HEADER COPORATIVO ---
+# --- HEADER CORPORATIVO ---
 st.markdown('<p class="main-title">👚 PRICE SHOES • Business Intelligence</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">MÓDULO: OPERACIONES ROPA – CONTROL DE ACONDICIONAMIENTO Y PISO (SEM 21)</p>', unsafe_allow_html=True)
 st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
@@ -185,7 +194,7 @@ if not df_filtered.empty:
     st.plotly_chart(fig_bar, use_container_width=True)
 
 
-    # --- GRÁFICO 4 (4 GRÁFICAS RE-AJUSTADAS CON LA FÓRMULA SOLICITADA) ---
+    # --- GRÁFICO 4 (4 GRÁFICAS POR TIENDA FORMULADAS SOBRE ADUANA SISTEMA) ---
     st.markdown('<p class="graph-title">🍰 4. % de Participación en Composición de Ingresos (Por Sucursal)</p>', unsafe_allow_html=True)
     
     tiendas_a_graficar = list(df_filtered['Tienda'].unique())
@@ -195,13 +204,13 @@ if not df_filtered.empty:
         tot_ing_t = df_t_sub['Total_Ingresos'].sum()
         
         if tot_ing_t > 0:
-            # Cálculo estricto basado en tu fórmula física: 100% - Aduana Física - Muertos = Cajas
-            p_aduana_fis = (df_t_sub['Fis_Aduana'].sum() / tot_ing_t) * 100
+            # Fórmula de Negocio: 100% - Aduana Sistema - Muertos = Cajas
+            p_aduana_sis = (df_t_sub['Sis_Aduana'].sum() / tot_ing_t) * 100
             p_muertos = (df_t_sub['Muertos'].sum() / tot_ing_t) * 100
-            p_cajas = max(0, 100.0 - (p_aduana_fis + p_muertos)) # Cajas absorbe el resto exacto
+            p_cajas = max(0, 100.0 - (p_aduana_sis + p_muertos)) # Cajas representa el resto exacto
             
-            labels = ['Aduana Física', 'Muertos', 'Cajas']
-            values = [p_aduana_fis, p_muertos, p_cajas]
+            labels = ['Aduana Sistema', 'Muertos', 'Cajas']
+            values = [p_aduana_sis, p_muertos, p_cajas]
             
             fig_donut_t = go.Figure(data=[go.Pie(
                 labels=labels, values=values, hole=.45, 
@@ -210,7 +219,7 @@ if not df_filtered.empty:
             )])
             
             fig_donut_t.update_layout(
-                title=dict(text=f"Distribución Matemática de Ingresos - {t_name.upper()}", font=dict(size=14, color="#1F497D", family="Arial"), x=0.02),
+                title=dict(text=f"Distribución Operativa de Ingresos - {t_name.upper()}", font=dict(size=14, color="#1F497D", family="Arial"), x=0.02),
                 plot_bgcolor="white", paper_bgcolor="white", height=380,
                 margin=dict(l=40, r=40, t=50, b=20), 
                 legend=dict(orientation="h", y=-0.05, x=0.0)
@@ -220,7 +229,7 @@ if not df_filtered.empty:
             st.info(f"La sucursal **{t_name}** no registró volúmenes de ingreso bruto en el rango seleccionado.")
 
 
-    # --- MATRIZ DE AUDITORÍA CON ALERTAS ---
+    # --- MATRIZ DE AUDITORÍA CON ENCABEZADOS AZUL ÉNFASIS 1 25% OSCURO ---
     st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
     
     df_table = df_filtered.sort_values("Fecha", ascending=False).copy()
