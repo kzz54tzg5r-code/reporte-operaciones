@@ -119,34 +119,22 @@ if not df_filtered.empty:
     st.write("")
 
     # =========================================================================
-    # --- BLOQUE DE GRÁFICOS (ANCHO COMPLETO CON PORCENTAJES Y LÍNEAS GRUESAS) ---
+    # --- BLOQUE DE GRÁFICOS INTERACTIVOS (ANCHO COMPLETO - 100%) ---
     # =========================================================================
 
     # --- GRÁFICO 1 ---
     st.markdown('<p class="graph-title">🎯 1. Eficiencia del Recorrido (Meta Objetivo 100%)</p>', unsafe_allow_html=True)
-    
-    # Redondear porcentaje para una visualización más limpia en las etiquetas
     df_line_data = df_filtered.sort_values("Fecha").copy()
     df_line_data['Eficiencia_Etiqueta'] = df_line_data['Eficiencia_Recorridos'].round(1).astype(str) + '%'
     
     fig_line = px.line(
         df_line_data, 
         x="Dia_Texto", y="Eficiencia_Recorridos", color="Tienda",
-        markers=True, 
-        text="Eficiencia_Etiqueta", # Muestra el valor porcentual exacto por día
+        markers=True, text="Eficiencia_Etiqueta",
         color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
     )
-    
-    # Línea de referencia de la meta al 100%
     fig_line.add_hline(y=100.0, line_dash="dash", line_color="#C0392B", annotation_text="Meta 100%", annotation_position="top left")
-    
-    # ENGROSAR LÍNEAS Y MEJORAR TEXTO
-    fig_line.update_traces(
-        line=dict(width=4.5), # Línea más gruesa
-        marker=dict(size=10),  # Marcadores más grandes
-        textposition="top center" # Ubicación del texto del porcentaje
-    )
-    
+    fig_line.update_traces(line=dict(width=4.5), marker=dict(size=10), textposition="top center")
     fig_line.update_layout(
         plot_bgcolor="white", paper_bgcolor="white", height=450,
         margin=dict(l=40, r=40, t=30, b=40), legend=dict(orientation="h", y=1.1, x=0)
@@ -158,33 +146,18 @@ if not df_filtered.empty:
 
     # --- GRÁFICO 2 ---
     st.markdown('<p class="graph-title">📦 2. Volumen de Prendas: Habilitado vs Ingreso Total</p>', unsafe_allow_html=True)
-    
-    # Agrupamos los datos totales diarios para calcular el porcentaje global por día
     df_daily_totals = df_filtered.groupby("Dia_Texto").sum(numeric_only=True).reset_index()
     df_daily_totals['Pct_Habilitado'] = (df_daily_totals['Habilitadas'] / df_daily_totals['Total_Ingresos'] * 100).fillna(0).round(1)
     df_daily_totals['Pct_Text'] = df_daily_totals['Pct_Habilitado'].astype(str) + '%'
 
-    # Construcción de gráfico combinado (Barras + Línea secundaria de porcentaje)
     fig_grouped = go.Figure()
-    
-    # Barras de volumenes
     fig_grouped.add_trace(go.Bar(name='Ingreso Total', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Total_Ingresos'], marker_color='#1F497D', yaxis='y'))
     fig_grouped.add_trace(go.Bar(name='Prendas Habilitadas', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Habilitadas'], marker_color='#7F97B2', yaxis='y'))
-    
-    # Línea de porcentaje diario (Gruesa y con etiquetas de texto del %)
     fig_grouped.add_trace(go.Scatter(
-        name='% Real Habilitado', 
-        x=df_daily_totals['Dia_Texto'], 
-        y=df_daily_totals['Pct_Habilitado'],
-        mode='lines+markers+text',
-        text=df_daily_totals['Pct_Text'],
-        textposition='top center',
-        line=dict(color='#E6007E', width=5), # Línea fucsia Price Shoes súper gruesa
-        marker=dict(size=11, symbol='diamond'),
-        yaxis='y2' # Eje secundario derecho para los porcentajes
+        name='% Real Habilitado', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Pct_Habilitado'],
+        mode='lines+markers+text', text=df_daily_totals['Pct_Text'], textposition='top center',
+        line=dict(color='#E6007E', width=5), marker=dict(size=11, symbol='diamond'), yaxis='y2'
     ))
-
-    # Configuración de los dos ejes independientes (Izquierda prendas, Derecha %)
     fig_grouped.update_layout(
         barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=450,
         margin=dict(l=40, r=50, t=30, b=40), legend=dict(orientation="h", y=1.1, x=0),
@@ -212,24 +185,40 @@ if not df_filtered.empty:
     st.plotly_chart(fig_bar, use_container_width=True)
 
 
-    # --- GRÁFICO 4 ---
-    st.markdown('<p class="graph-title">🍰 4. % de Participación en Composición de Ingresos</p>', unsafe_allow_html=True)
-    tot_ing = df_filtered['Total_Ingresos'].sum()
-    if tot_ing > 0:
-        p_aduana = (df_filtered['Sis_Aduana'].sum() / tot_ing) * 100
-        p_muertos = (df_filtered['Muertos'].sum() / tot_ing) * 100
-        p_cajas = max(0, 100.0 - (p_aduana + p_muertos))
-    else:
-        p_aduana, p_muertos, p_cajas = 0, 0, 0
-
-    labels = ['Aduana Sistema', 'Muertos', 'Cajas']
-    values = [p_aduana, p_muertos, p_cajas]
-    fig_donut = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.4, marker=dict(colors=['#1F497D', '#E6007E', '#A6A6A6']))])
-    fig_donut.update_layout(
-        plot_bgcolor="white", paper_bgcolor="white", height=420,
-        margin=dict(l=40, r=40, t=20, b=20), legend=dict(orientation="h", y=-0.1, x=0.35)
-    )
-    st.plotly_chart(fig_donut, use_container_width=True)
+    # --- GRÁFICO 4 (DESGLOSADO EN 4 SUBCURSALES INDEPENDIENTES) ---
+    st.markdown('<p class="graph-title">🍰 4. % de Participación en Composición de Ingresos (Por Sucursal)</p>', unsafe_allow_html=True)
+    
+    # Obtenemos las tiendas presentes en la selección actual
+    tiendas_a_graficar = list(df_filtered['Tienda'].unique())
+    
+    for t_name in tiendas_a_graficar:
+        df_t_sub = df_filtered[df_filtered['Tienda'] == t_name]
+        tot_ing_t = df_t_sub['Total_Ingresos'].sum()
+        
+        if tot_ing_t > 0:
+            p_aduana = (df_t_sub['Sis_Aduana'].sum() / tot_ing_t) * 100
+            p_muertos = (df_t_sub['Muertos'].sum() / tot_ing_t) * 100
+            p_cajas = max(0, 100.0 - (p_aduana + p_muertos))
+            
+            labels = ['Aduana Sistema', 'Muertos', 'Cajas']
+            values = [p_aduana, p_muertos, p_cajas]
+            
+            # Gráfica individual extendida
+            fig_donut_t = go.Figure(data=[go.Pie(
+                labels=labels, values=values, hole=.45, 
+                marker=dict(colors=['#1F497D', '#E6007E', '#A6A6A6']),
+                textinfo='label+percent'
+            )])
+            
+            fig_donut_t.update_layout(
+                title=dict(text=f"Distribución de Ingresos - {t_name.upper()}", font=dict(size=14, color="#1F497D", family="Arial"), x=0.02),
+                plot_bgcolor="white", paper_bgcolor="white", height=380,
+                margin=dict(l=40, r=40, t=50, b=20), 
+                legend=dict(orientation="h", y=-0.05, x=0.0)
+            )
+            st.plotly_chart(fig_donut_t, use_container_width=True)
+        else:
+            st.info(f"La sucursal **{t_name}** no registró volúmenes de ingreso bruto en el rango seleccionado.")
 
 
     # --- MATRIZ DE AUDITORÍA CON ALERTAS ---
