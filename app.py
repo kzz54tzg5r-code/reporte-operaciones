@@ -78,7 +78,7 @@ def get_operational_data():
 
 df = get_operational_data()
 
-# --- HEADER FIEL A LA IDENTIDAD VISUAL ---
+# --- HEADER ---
 st.markdown('<p class="main-title">👚 PRICE SHOES • Business Intelligence</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">MÓDULO: OPERACIONES ROPA – CONTROL DE ACONDICIONAMIENTO Y PISO (SEM 21)</p>', unsafe_allow_html=True)
 st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
@@ -116,7 +116,7 @@ if not df_filtered.empty:
 
     st.write("")
 
-    # --- FILA DE GRÁFICOS 1: COMPORTAMIENTO TEMPORAL ---
+    # --- FILA DE GRÁFICOS 1 ---
     col1, col2 = st.columns(2)
 
     with col1:
@@ -131,8 +131,8 @@ if not df_filtered.empty:
             plot_bgcolor="white", paper_bgcolor="white", height=350,
             margin=dict(l=40, r=20, t=10, b=40), legend=dict(orientation="h", y=1.15, x=0)
         )
-        fig_line.update_xaxes(showgrid=True, gridcolor='#EFEFEFEF', title="Día del Proceso")
-        fig_line.update_yaxes(showgrid=True, gridcolor='#EFEFEFEF', title="% Eficiencia")
+        fig_line.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día del Proceso")
+        fig_line.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="% Eficiencia")
         st.plotly_chart(fig_line, use_container_width=True)
 
     with col2:
@@ -146,18 +146,17 @@ if not df_filtered.empty:
             barmode="stack", plot_bgcolor="white", paper_bgcolor="white", height=350,
             margin=dict(l=40, r=20, t=10, b=40), legend=dict(orientation="h", y=1.15, x=0)
         )
-        fig_stack.update_xaxes(showgrid=True, gridcolor='#EFEFEFEF', title="Día")
-        fig_stack.update_yaxes(showgrid=True, gridcolor='#EFEFEFEF', title="Prendas Totales")
+        fig_stack.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día")
+        fig_stack.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="Prendas Totales")
         st.plotly_chart(fig_stack, use_container_width=True)
 
-    # --- FILA DE GRÁFICOS 2: EFICIENCIAS COMERCIALES ---
+    # --- FILA DE GRÁFICOS 2 ---
     col3, col4 = st.columns(2)
 
     with col3:
         st.markdown('<p class="graph-title">🎯 Porcentaje de Éxito Comercial de Ubicación</p>', unsafe_allow_html=True)
         df_tienda = df_filtered.groupby("Tienda").mean(numeric_only=True).reset_index()
         
-        # Corregido: Enfocado únicamente en la métrica porcentual para evitar desproporciones numéricas
         fig_bar = go.Figure()
         fig_bar.add_trace(go.Bar(
             y=df_tienda['Tienda'], x=df_tienda['Porcentaje_Ubicado'],
@@ -168,7 +167,7 @@ if not df_filtered.empty:
             plot_bgcolor="white", paper_bgcolor="white", height=350,
             margin=dict(l=40, r=20, t=10, b=40), legend=dict(orientation="h", y=1.15, x=0)
         )
-        fig_bar.update_xaxes(showgrid=True, gridcolor='#EFEFEFEF', title="% Efectividad")
+        fig_bar.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="% Efectividad")
         st.plotly_chart(fig_bar, use_container_width=True)
 
     with col4:
@@ -183,20 +182,16 @@ if not df_filtered.empty:
             plot_bgcolor="white", paper_bgcolor="white", height=350,
             margin=dict(l=40, r=20, t=10, b=40), legend=dict(orientation="h", y=1.15, x=0)
         )
-        fig_scatter.update_xaxes(showgrid=True, gridcolor='#EFEFEFEF', title="Cantidad de Prendas en Piso")
-        fig_scatter.update_yaxes(showgrid=True, gridcolor='#EFEFEFEF', title="% Éxito Ubicación")
+        fig_scatter.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Cantidad de Prendas en Piso")
+        fig_scatter.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="% Éxito Ubicación")
         st.plotly_chart(fig_scatter, use_container_width=True)
 
-    # --- MATRIZ DE AUDITORÍA CON COLOR (STYLING) ---
+    # --- MATRIZ DE AUDITORÍA CON COLOR ---
     st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
     
-    # Preparar el dataframe para mostrar con estilos
     df_table = df_filtered.sort_values("Fecha", ascending=False).copy()
-    
-    # Formatear la fecha a string para una visualización limpia
     df_table['Fecha'] = df_table['Fecha'].dt.strftime('%Y-%m-%d')
     
-    # Renombrar columnas para la tabla corporativa
     df_table = df_table.rename(columns={
         "Sis_Aduana": "Aduana Sist.",
         "Fis_Aduana": "Aduana Fís.",
@@ -206,10 +201,8 @@ if not df_filtered.empty:
         "Ubicadas": "Prendas Piso"
     })
     
-    # Columnas a mostrar
     cols_to_show = ["Fecha", "Tienda", "Aduana Sist.", "Aduana Fís.", "Muertos", "Cajas", "Total Ingresos", "Ef. Recorridos %", "Ubicado %", "Prendas Piso"]
     
-    # Aplicar mapa de color degradado a las columnas de KPIs numéricos claves
     styled_df = df_table[cols_to_show].style\
         .background_gradient(subset=["Ef. Recorridos %"], cmap="Blues")\
         .background_gradient(subset=["Ubicado %"], cmap="Purples")\
