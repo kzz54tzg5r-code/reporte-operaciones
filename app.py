@@ -119,40 +119,83 @@ if not df_filtered.empty:
     st.write("")
 
     # =========================================================================
-    # --- BLOQUE DE GRÁFICOS (VISTA DE ANCHO COMPLETO - 100%) ---
+    # --- BLOQUE DE GRÁFICOS (ANCHO COMPLETO CON PORCENTAJES Y LÍNEAS GRUESAS) ---
     # =========================================================================
 
-    # Gráfico 1 - Ancho Completo
+    # --- GRÁFICO 1 ---
     st.markdown('<p class="graph-title">🎯 1. Eficiencia del Recorrido (Meta Objetivo 100%)</p>', unsafe_allow_html=True)
+    
+    # Redondear porcentaje para una visualización más limpia en las etiquetas
+    df_line_data = df_filtered.sort_values("Fecha").copy()
+    df_line_data['Eficiencia_Etiqueta'] = df_line_data['Eficiencia_Recorridos'].round(1).astype(str) + '%'
+    
     fig_line = px.line(
-        df_filtered.sort_values("Fecha"), 
+        df_line_data, 
         x="Dia_Texto", y="Eficiencia_Recorridos", color="Tienda",
-        markers=True, color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
+        markers=True, 
+        text="Eficiencia_Etiqueta", # Muestra el valor porcentual exacto por día
+        color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
     )
+    
+    # Línea de referencia de la meta al 100%
     fig_line.add_hline(y=100.0, line_dash="dash", line_color="#C0392B", annotation_text="Meta 100%", annotation_position="top left")
+    
+    # ENGROSAR LÍNEAS Y MEJORAR TEXTO
+    fig_line.update_traces(
+        line=dict(width=4.5), # Línea más gruesa
+        marker=dict(size=10),  # Marcadores más grandes
+        textposition="top center" # Ubicación del texto del porcentaje
+    )
+    
     fig_line.update_layout(
-        plot_bgcolor="white", paper_bgcolor="white", height=400,
-        margin=dict(l=40, r=40, t=20, b=40), legend=dict(orientation="h", y=1.1, x=0)
+        plot_bgcolor="white", paper_bgcolor="white", height=450,
+        margin=dict(l=40, r=40, t=30, b=40), legend=dict(orientation="h", y=1.1, x=0)
     )
     fig_line.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día")
     fig_line.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="% Eficiencia Real")
     st.plotly_chart(fig_line, use_container_width=True)
 
-    # Gráfico 2 - Ancho Completo
+
+    # --- GRÁFICO 2 ---
     st.markdown('<p class="graph-title">📦 2. Volumen de Prendas: Habilitado vs Ingreso Total</p>', unsafe_allow_html=True)
+    
+    # Agrupamos los datos totales diarios para calcular el porcentaje global por día
     df_daily_totals = df_filtered.groupby("Dia_Texto").sum(numeric_only=True).reset_index()
+    df_daily_totals['Pct_Habilitado'] = (df_daily_totals['Habilitadas'] / df_daily_totals['Total_Ingresos'] * 100).fillna(0).round(1)
+    df_daily_totals['Pct_Text'] = df_daily_totals['Pct_Habilitado'].astype(str) + '%'
+
+    # Construcción de gráfico combinado (Barras + Línea secundaria de porcentaje)
     fig_grouped = go.Figure()
-    fig_grouped.add_trace(go.Bar(name='Ingreso Total', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Total_Ingresos'], marker_color='#1F497D'))
-    fig_grouped.add_trace(go.Bar(name='Prendas Habilitadas', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Habilitadas'], marker_color='#7F97B2'))
+    
+    # Barras de volumenes
+    fig_grouped.add_trace(go.Bar(name='Ingreso Total', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Total_Ingresos'], marker_color='#1F497D', yaxis='y'))
+    fig_grouped.add_trace(go.Bar(name='Prendas Habilitadas', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Habilitadas'], marker_color='#7F97B2', yaxis='y'))
+    
+    # Línea de porcentaje diario (Gruesa y con etiquetas de texto del %)
+    fig_grouped.add_trace(go.Scatter(
+        name='% Real Habilitado', 
+        x=df_daily_totals['Dia_Texto'], 
+        y=df_daily_totals['Pct_Habilitado'],
+        mode='lines+markers+text',
+        text=df_daily_totals['Pct_Text'],
+        textposition='top center',
+        line=dict(color='#E6007E', width=5), # Línea fucsia Price Shoes súper gruesa
+        marker=dict(size=11, symbol='diamond'),
+        yaxis='y2' # Eje secundario derecho para los porcentajes
+    ))
+
+    # Configuración de los dos ejes independientes (Izquierda prendas, Derecha %)
     fig_grouped.update_layout(
-        barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=400,
-        margin=dict(l=40, r=40, t=20, b=40), legend=dict(orientation="h", y=1.1, x=0)
+        barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=450,
+        margin=dict(l=40, r=50, t=30, b=40), legend=dict(orientation="h", y=1.1, x=0),
+        yaxis=dict(title="Cantidad de Prendas (Barras)", showgrid=True, gridcolor='#EFEFEF'),
+        yaxis2=dict(title="% Real Habilitado (Línea)", overlaying='y', side='right', range=[0, 120], showgrid=False)
     )
-    fig_grouped.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día")
-    fig_grouped.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="Cantidad de Prendas")
+    fig_grouped.update_xaxes(title="Día")
     st.plotly_chart(fig_grouped, use_container_width=True)
 
-    # Gráfico 3 - Ancho Completo
+
+    # --- GRÁFICO 3 ---
     st.markdown('<p class="graph-title">📊 3. Porcentaje de Ubicado (Efectividad Máxima en Piso)</p>', unsafe_allow_html=True)
     df_tienda = df_filtered.groupby("Tienda").mean(numeric_only=True).reset_index()
     fig_bar = go.Figure()
@@ -168,7 +211,8 @@ if not df_filtered.empty:
     fig_bar.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="% Efectividad Real Comercial", range=[0, 105])
     st.plotly_chart(fig_bar, use_container_width=True)
 
-    # Gráfico 4 - Ancho Completo
+
+    # --- GRÁFICO 4 ---
     st.markdown('<p class="graph-title">🍰 4. % de Participación en Composición de Ingresos</p>', unsafe_allow_html=True)
     tot_ing = df_filtered['Total_Ingresos'].sum()
     if tot_ing > 0:
