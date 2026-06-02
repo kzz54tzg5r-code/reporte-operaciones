@@ -11,7 +11,7 @@ st.markdown("""
     <style>
     .reportview-container { background-color: #FFFFFF; }
     h1 { color: #1F497D !important; font-family: 'Arial Black', Gadget, sans-serif; font-size: 32px !important; }
-    h4 { color: #1F497D !important; font-weight: bold; }
+    h4 { color: #1F497D !important; font-weight: bold; margin-top: 15px; margin-bottom: 10px; }
     div[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: bold; color: #1F497D !important; }
     </style>
     """, unsafe_allow_html=True)
@@ -65,24 +65,19 @@ def get_operational_data():
     df = pd.DataFrame(data)
     df['Fecha'] = pd.to_datetime(df['Fecha'])
 
-    # Métricas de negocio calculadas
+    # Métricas calculadas
     df['Total_Ingresos'] = df['Fis_Aduana'] + df['Muertos'] + df['Cajas']
     df['Eficiencia_Recorridos'] = (df['Real_Rec'] / df['Meta_Rec']) * 100
-    df['Utilizacion_Habilitado'] = (
-        (df['Habilitadas'] / df['Recolectadas'])
-        .replace([float('inf'), -float('inf')], 0)
-        .fillna(0) * 100
-    )
-    df['Porcentaje_Ubicado'] = (
-        (df['Ubicadas'] / df['Recolectadas'])
-        .replace([float('inf'), -float('inf')], 0)
-        .fillna(0) * 100
-    )
+    df['Utilizacion_Habilitado'] = ((df['Habilitadas'] / df['Recolectadas']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
+    df['Porcentaje_Ubicado'] = ((df['Ubicadas'] / df['Recolectadas']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
+    
+    # Columna auxiliar de texto para los ejes de los gráficos
+    df['Dia_Texto'] = df['Fecha'].dt.strftime('%a %d')
     return df
 
 df = get_operational_data()
 
-# --- HEADER DISEÑADO CON NUEVA IDENTIDAD EJECUTIVA ---
+# --- HEADER DISEÑADO ---
 st.markdown("<h1>👚 PRICE SHOES • Operaciones ropa</h1>", unsafe_allow_html=True)
 st.markdown("<p style='color:#1F497D; font-size:18px; font-weight:bold; margin-top:-15px; letter-spacing: 0.5px;'>Proceso de Muertos y cambios (Semana 21)</p>", unsafe_allow_html=True)
 st.markdown("<hr style='border: 0; height: 3px; background: #1F497D; margin-top:5px; margin-bottom:20px;'>", unsafe_allow_html=True)
@@ -95,7 +90,7 @@ min_date = df['Fecha'].min().date()
 max_date = df['Fecha'].max().date()
 fecha_rango = st.sidebar.date_input("Rango Temporal", [min_date, max_date])
 
-# Aplicar filtros dinámicos
+# Aplicar filtros
 df_filtered = df.copy()
 if tienda != "Todas las Tiendas":
     df_filtered = df_filtered[df_filtered['Tienda'] == tienda]
@@ -104,13 +99,13 @@ if len(fecha_rango) == 2:
     start_date, end_date = fecha_rango
     df_filtered = df_filtered[(df_filtered['Fecha'].dt.date >= start_date) & (df_filtered['Fecha'].dt.date <= end_date)]
 
-# --- TARJETAS KPI EN AZUL ÉNFASIS Y FONDO GRIS ---
+# --- TARJETAS KPI ---
 if not df_filtered.empty:
     kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
     with kpi_col1:
         st.markdown("<div style='padding:15px; border-radius:4px; background-color:#D9D9D9; border-left: 6px solid #1F497D;'><strong>Pzas Ropa Ingresadas</strong><br><span style='font-size:26px; font-weight:bold; color:#1F497D;'>{:,}</span></div>".format(df_filtered['Total_Ingresos'].sum()), unsafe_allow_html=True)
     with kpi_col2:
-        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#F0F4F8; border-left: 6px solid #1F497D;'><strong>Eficiencia Recorridos</strong><br><span style='font-size:26px; font-weight:bold; color:#1F497D;'>{:.1f}%</span></div>".format(df_filtered['Eficiencia_Recorridos'].mean()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#F0F4F8; border-left: 6px solid #1F497D;'><strong>Eficiencia Recorridos Prom.</strong><br><span style='font-size:26px; font-weight:bold; color:#1F497D;'>{:.1f}%</span></div>".format(df_filtered['Eficiencia_Recorridos'].mean()), unsafe_allow_html=True)
     with kpi_col3:
         st.markdown("<div style='padding:15px; border-radius:4px; background-color:#D9D9D9; border-left: 6px solid #1F497D;'><strong>Prendas Ubicadas (Piso)</strong><br><span style='font-size:26px; font-weight:bold; color:#1F497D;'>{:,}</span></div>".format(df_filtered['Ubicadas'].sum()), unsafe_allow_html=True)
     with kpi_col4:
@@ -120,40 +115,50 @@ if not df_filtered.empty:
 
     st.write("")
 
-    # --- CUADRO DE GRÁFICOS COORDINADOS EN PALETA DE COLOR ---
-    col_izq, col_der = st.columns([3, 2])
+    # --- BLOQUE DE GRÁFICOS 1: COMPORTAMIENTO POR DÍA Y TIENDA ---
+    st.markdown("### 📊 Análisis Avanzado por Día y Sucursal")
+    col1, col2 = st.columns(2)
 
-    with col_izq:
-        st.markdown("#### 📉 Carga Operativa: Volumen vs Éxito de Ubicación")
-        df_trend = df_filtered.groupby("Fecha").sum().reset_index()
-        
-        fig_dual = go.Figure()
-        # Barras en Gris Oscuro 25% para representar la base total de ingresos
-        fig_dual.add_trace(go.Bar(
-            x=df_trend['Fecha'], y=df_trend['Total_Ingresos'],
-            name='Total Ingresos (Ropa)', marker_color='#999999', opacity=0.85
-        ))
-        # Línea en Azul Énfasis 1 para el volumen colocado con éxito
-        fig_dual.add_trace(go.Scatter(
-            x=df_trend['Fecha'], y=df_trend['Ubicadas'],
-            name='Prendas Ubicadas', mode='lines+markers',
-            line=dict(color='#1F497D', width=4), marker=dict(size=8, symbol="diamond")
-        ))
-        fig_dual.update_layout(
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
-            margin=dict(l=10, r=10, t=30, b=10), hovermode="x unified", height=380,
-            plot_bgcolor="white", paper_bgcolor="white"
+    with col1:
+        st.markdown("#### 📈 Tendencia de Eficiencia de Recorridos por Día")
+        # Gráfico por día y tienda usando una paleta derivada del azul ejecutivo
+        fig_line = px.line(
+            df_filtered.sort_values("Fecha"), 
+            x="Dia_Texto", y="Eficiencia_Recorridos", color="Tienda",
+            markers=True,
+            color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
         )
-        fig_dual.update_xaxes(showgrid=True, gridcolor='#D9D9D9')
-        fig_dual.update_yaxes(showgrid=True, gridcolor='#D9D9D9')
-        st.plotly_chart(fig_dual, use_container_width=True)
+        fig_line.update_layout(
+            plot_bgcolor="white", paper_bgcolor="white", height=320,
+            margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", y=1.1)
+        )
+        fig_line.update_xaxes(showgrid=True, gridcolor='#D9D9D9', title="Día del Proceso")
+        fig_line.update_yaxes(showgrid=True, gridcolor='#D9D9D9', title="% Eficiencia")
+        st.plotly_chart(fig_line, use_container_width=True)
 
-    with col_der:
-        st.markdown("#### 🏆 Métricas Promedio de Ropa por Sucursal")
+    with col2:
+        st.markdown("#### 📦 Volumen Total de Ingresos (Carga Operativa por Día)")
+        # Gráfico de barras apiladas por día y tienda
+        fig_stack = px.bar(
+            df_filtered.sort_values("Fecha"),
+            x="Dia_Texto", y="Total_Ingresos", color="Tienda",
+            color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
+        )
+        fig_stack.update_layout(
+            barmode="stack", plot_bgcolor="white", paper_bgcolor="white", height=320,
+            margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", y=1.1)
+        )
+        fig_stack.update_xaxes(showgrid=True, gridcolor='#D9D9D9', title="Día")
+        fig_stack.update_yaxes(showgrid=True, gridcolor='#D9D9D9', title="Prendas Totales")
+        st.plotly_chart(fig_stack, use_container_width=True)
+
+    # --- BLOQUE DE GRÁFICOS 2: EFICACIA COMERCIAL ---
+    col3, col4 = st.columns([2, 3])
+
+    with col3:
+        st.markdown("#### 🎯 Eficiencia Global por Sucursal")
         df_tienda = df_filtered.groupby("Tienda").mean().reset_index()
-        
         fig_bar = go.Figure()
-        # Comparativa usando las dos tonalidades solicitadas
         fig_bar.add_trace(go.Bar(
             y=df_tienda['Tienda'], x=df_tienda['Eficiencia_Recorridos'],
             name='% Eficiencia Recorridos', orientation='h', marker_color='#1F497D'
@@ -163,16 +168,31 @@ if not df_filtered.empty:
             name='% Comercial Ubicado', orientation='h', marker_color='#7F97B2'
         ))
         fig_bar.update_layout(
-            barmode='group', legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
-            margin=dict(l=10, r=10, t=30, b=10), height=380,
-            plot_bgcolor="white", paper_bgcolor="white"
+            barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=300,
+            margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", y=1.15)
         )
         fig_bar.update_xaxes(showgrid=True, gridcolor='#D9D9D9')
         st.plotly_chart(fig_bar, use_container_width=True)
 
-    # --- MATRIZ DE AUDITORÍA CON INDICADORES NATIVOS COMPATIBLES ---
+    with col4:
+        st.markdown("#### 🔍 Dispersión: Relación de Prendas Ubicadas vs Éxito de Piso")
+        # Muestra la relación entre volumen absoluto puesto en piso y el porcentaje relativo de éxito
+        fig_scatter = px.scatter(
+            df_filtered, x="Ubicadas", y="Porcentaje_Ubicado", color="Tienda", 
+            size="Total_Ingresos", text="Dia_Texto",
+            color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
+        )
+        fig_scatter.update_traces(textposition='top center')
+        fig_scatter.update_layout(
+            plot_bgcolor="white", paper_bgcolor="white", height=300,
+            margin=dict(l=10, r=10, t=10, b=10), showlegend=False
+        )
+        fig_scatter.update_xaxes(showgrid=True, gridcolor='#D9D9D9', title="Cantidad de Prendas en Piso")
+        fig_scatter.update_yaxes(showgrid=True, gridcolor='#D9D9D9', title="% Éxito Ubicación")
+        st.plotly_chart(fig_scatter, use_container_width=True)
+
+    # --- MATRIZ DE AUDITORÍA ---
     st.markdown("#### 🔍 Matriz General de Auditoría Operativa")
-    
     st.dataframe(
         df_filtered.sort_values("Fecha", ascending=False),
         column_config={
@@ -189,7 +209,6 @@ if not df_filtered.empty:
             "Utilizacion_Habilitado": st.column_config.NumberColumn(
                 "Utilización Habilitado", format="%.1f%%"
             ),
-            # Barra de progreso optimizada usando el código hexadecimal del Azul Énfasis 1 solicitado
             "Porcentaje_Ubicado": st.column_config.ProgressColumn(
                 "% Ubicado (Éxito)", format="%.0f%%", min_value=0, max_value=260, color="#1F497D"
             ),
