@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 
 # --- CONFIGURACIÓN DE BI ---
-st.set_page_config(page_title="BI - Cambios y Muertos", layout="wide", page_icon="📊")
+st.set_page_config(page_title="BI - Control de Operaciones", layout="wide", page_icon="📊")
 
 # --- DATASET CONSOLIDADO DEL PDF ---
 @st.cache_data
@@ -67,75 +68,124 @@ def get_operational_data():
 df = get_operational_data()
 
 # --- INTERFAZ ---
-st.title("🛡️ Sistema de Control de Operaciones")
-st.markdown("**Archivo de origen:** *Indicadores Cambios y muertos Sem 21..pdf*")
+st.title("🛡️ Panel Ejecutivo de Control Operativo")
+st.markdown("**Semana de Análisis:** *Semana 21 (25 al 31 de Mayo de 2026)*")
 
-# Sidebar
-st.sidebar.header("Parámetros de Análisis")
-tienda = st.sidebar.selectbox("Seleccionar Tienda", ["Todas"] + list(df['Tienda'].unique()))
+# Sidebar Profesional
+st.sidebar.markdown("### 🎛️ Filtros Avanzados")
+tienda = st.sidebar.selectbox("Seleccionar Sucursal", ["Todas las Tiendas"] + list(df['Tienda'].unique()))
 
-# Selección segura de fechas basadas en el dataframe real
 min_date = df['Fecha'].min().date()
 max_date = df['Fecha'].max().date()
-fecha_rango = st.sidebar.date_input("Rango de Fechas", [min_date, max_date])
+fecha_rango = st.sidebar.date_input("Rango Temporal", [min_date, max_date])
 
 # Filtrado Dinámico
 df_filtered = df.copy()
-if tienda != "Todas":
+if tienda != "Todas las Tiendas":
     df_filtered = df_filtered[df_filtered['Tienda'] == tienda]
 
 if len(fecha_rango) == 2:
     start_date, end_date = fecha_rango
     df_filtered = df_filtered[(df_filtered['Fecha'].dt.date >= start_date) & (df_filtered['Fecha'].dt.date <= end_date)]
 
-# --- DASHBOARD ---
+# --- TARJETAS KPI ---
 if not df_filtered.empty:
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.metric("Total Ingresos Semanales", f"{df_filtered['Total_Ingresos'].sum():,}")
-    with c2:
-        st.metric("Promedio Eficiencia Rec.", f"{df_filtered['Eficiencia_Recorridos'].mean():.1f}%")
-    with c3:
-        st.metric("Piezas Ubicadas", f"{df_filtered['Ubicadas'].sum():,}")
-    with c4:
+    kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
+    with kpi_col1:
+        st.metric(label="Total Piezas Ingresadas", value=f"{df_filtered['Total_Ingresos'].sum():,}")
+    with kpi_col2:
+        st.metric(label="Eficiencia Promedio Recorridos", value=f"{df_filtered['Eficiencia_Recorridos'].mean():.1f}%")
+    with kpi_col3:
+        st.metric(label="Total Unidades Ubicadas", value=f"{df_filtered['Ubicadas'].sum():,}")
+    with kpi_col4:
         diff_aduana = df_filtered['Fis_Aduana'].sum() - df_filtered['Sis_Aduana'].sum()
-        st.metric("Discrepancia Aduana", f"{diff_aduana:,}", delta=int(diff_aduana), delta_color="inverse")
+        st.metric(label="Desviación Aduana (Fís vs Sis)", value=f"{diff_aduana:,}", delta=int(diff_aduana), delta_color="inverse")
 
     st.divider()
 
-    col_main, col_side = st.columns([2, 1])
+    # --- SECCIÓN GRÁFICA AVANZADA ---
+    col_izq, col_der = st.columns([3, 2])
 
-    with col_main:
-        st.subheader("Flujo de Piezas vs Capacidad Instalada")
-        fig = px.area(
-            df_filtered, x="Fecha", y=["Total_Ingresos", "Ubicadas"],
-            title="Balance de Carga: Ingreso vs Ubicación",
-            labels={"value": "Unidades", "variable": "Categoría"},
-            line_shape="spline", color_discrete_sequence=["#FF4B4B", "#00CC96"]
+    with col_izq:
+        st.markdown("#### 📈 Balance de Carga Operativa (Ingreso Diario vs Ubicación)")
+        # Agrupamos por fecha para consolidar la tendencia temporal de la semana
+        df_trend = df_filtered.groupby("Fecha").sum().reset_index()
+        
+        # Construcción del Gráfico Dual Axis (Combinado)
+        fig_dual = go.Figure()
+        
+        # Barras para representar la carga que va entrando (Ingresos masivos)
+        fig_dual.add_trace(go.Bar(
+            x=df_trend['Fecha'], y=df_trend['Total_Ingresos'],
+            name='Total Ingresos (Volumen)', marker_color='#34495E', opacity=0.85
+        ))
+        
+        # Línea de tendencia superior para medir la velocidad de salida (Ubicación en Piso)
+        fig_dual.add_trace(go.Scatter(
+            x=df_trend['Fecha'], y=df_trend['Ubicadas'],
+            name='Piezas Ubicadas (Éxito)', mode='lines+markers',
+            line=dict(color='#00CC96', width=4), marker=dict(size=8)
+        ))
+        
+        fig_dual.update_layout(
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(l=20, r=20, t=30, b=20),
+            hovermode="x unified",
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            height=400
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig_dual, use_container_width=True)
 
-    with col_side:
-        st.subheader("Desempeño por Tienda")
-        fig_pie = px.sunburst(
-            df_filtered, path=['Tienda', 'Fecha'], values='Total_Ingresos',
-            color='Eficiencia_Recorridos', color_continuous_scale='RdYlGn'
+    with col_der:
+        st.markdown("#### 🏆 Comparativo de Eficiencias por Tienda")
+        # Consolidado por Tienda para evaluar indicadores de productividad
+        df_tienda = df_filtered.groupby("Tienda").mean().reset_index()
+        
+        # Gráfico de barras horizontales agrupadas para benchmark inmediato
+        fig_bar = go.Figure()
+        fig_bar.add_trace(go.Bar(
+            y=df_tienda['Tienda'], x=df_tienda['Eficiencia_Recorridos'],
+            name='% Eficiencia Recorridos', orientation='h', marker_color='#FF4B4B'
+        ))
+        fig_bar.add_trace(go.Bar(
+            y=df_tienda['Tienda'], x=df_tienda['Utilizacion_Habilitado'],
+            name='% Utilización Habilitado', orientation='h', marker_color='#45B39D'
+        ))
+        
+        fig_bar.update_layout(
+            barmode='group',
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            margin=dict(l=20, r=20, t=30, b=20),
+            xaxis=dict(title="Porcentaje (%)", gridcolor="rgba(200,200,200,0.2)"),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            height=400
         )
-        st.plotly_chart(fig_pie, use_container_width=True)
+        st.plotly_chart(fig_bar, use_container_width=True)
 
-    st.subheader("🔍 Auditoría de Datos Operativos")
+    # --- TABLA DE AUDITORÍA INFERIOR ---
+    st.markdown("#### 🔍 Matriz de Auditoría Operativa")
     st.dataframe(
         df_filtered.sort_values("Fecha", ascending=False),
         column_config={
-            "Fecha": st.column_config.DateColumn("Día"),
+            "Fecha": st.column_config.DateColumn("Día de Operación"),
+            "Tienda": "Sucursal",
+            "Sis_Aduana": "Aduana (Sistema)",
+            "Fis_Aduana": "Aduana (Físico)",
+            "Muertos": "Muertos",
+            "Cajas": "Cajas",
+            "Total_Ingresos": "Ingresos Totales",
             "Eficiencia_Recorridos": st.column_config.ProgressColumn(
-                "Eficiencia Rec.", format="%.0f%%", min_value=0, max_value=150
+                "Eficiencia Recorridos", format="%.0f%%", min_value=0, max_value=200
             ),
-            "Total_Ingresos": "Total Ingresos",
-            "Ubicadas": "Piezas en Piso"
-        }, hide_index=True
+            "Utilizacion_Habilitado": st.column_config.NumberColumn(
+                "Utilización Habilitado", format="%.1f%%"
+            ),
+            "Ubicadas": "Piezas Ubicadas"
+        }, hide_index=True, use_container_width=True
     )
 else:
     st.warning("No hay registros disponibles para los filtros seleccionados actualmente.")
 
-st.info("Nota: Los porcentajes superiores al 100% en Habilitado indican procesamiento de rezago.")
+st.info("Nota de BI: Las eficiencias superiores al 100% reflejan el procesamiento de rezagos acumulados de turnos anteriores.")
