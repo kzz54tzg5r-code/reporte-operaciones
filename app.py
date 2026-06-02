@@ -185,10 +185,9 @@ if not df_filtered.empty:
     st.plotly_chart(fig_bar, use_container_width=True)
 
 
-    # --- GRÁFICO 4 (DESGLOSADO EN 4 SUBCURSALES INDEPENDIENTES) ---
+    # --- GRÁFICO 4 (4 GRÁFICAS RE-AJUSTADAS CON LA FÓRMULA SOLICITADA) ---
     st.markdown('<p class="graph-title">🍰 4. % de Participación en Composición de Ingresos (Por Sucursal)</p>', unsafe_allow_html=True)
     
-    # Obtenemos las tiendas presentes en la selección actual
     tiendas_a_graficar = list(df_filtered['Tienda'].unique())
     
     for t_name in tiendas_a_graficar:
@@ -196,14 +195,14 @@ if not df_filtered.empty:
         tot_ing_t = df_t_sub['Total_Ingresos'].sum()
         
         if tot_ing_t > 0:
-            p_aduana = (df_t_sub['Sis_Aduana'].sum() / tot_ing_t) * 100
+            # Cálculo estricto basado en tu fórmula física: 100% - Aduana Física - Muertos = Cajas
+            p_aduana_fis = (df_t_sub['Fis_Aduana'].sum() / tot_ing_t) * 100
             p_muertos = (df_t_sub['Muertos'].sum() / tot_ing_t) * 100
-            p_cajas = max(0, 100.0 - (p_aduana + p_muertos))
+            p_cajas = max(0, 100.0 - (p_aduana_fis + p_muertos)) # Cajas absorbe el resto exacto
             
-            labels = ['Aduana Sistema', 'Muertos', 'Cajas']
-            values = [p_aduana, p_muertos, p_cajas]
+            labels = ['Aduana Física', 'Muertos', 'Cajas']
+            values = [p_aduana_fis, p_muertos, p_cajas]
             
-            # Gráfica individual extendida
             fig_donut_t = go.Figure(data=[go.Pie(
                 labels=labels, values=values, hole=.45, 
                 marker=dict(colors=['#1F497D', '#E6007E', '#A6A6A6']),
@@ -211,7 +210,7 @@ if not df_filtered.empty:
             )])
             
             fig_donut_t.update_layout(
-                title=dict(text=f"Distribución de Ingresos - {t_name.upper()}", font=dict(size=14, color="#1F497D", family="Arial"), x=0.02),
+                title=dict(text=f"Distribución Matemática de Ingresos - {t_name.upper()}", font=dict(size=14, color="#1F497D", family="Arial"), x=0.02),
                 plot_bgcolor="white", paper_bgcolor="white", height=380,
                 margin=dict(l=40, r=40, t=50, b=20), 
                 legend=dict(orientation="h", y=-0.05, x=0.0)
