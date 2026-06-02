@@ -10,9 +10,10 @@ st.set_page_config(page_title="Price Shoes - Operaciones Ropa", layout="wide", p
 st.markdown("""
     <style>
     .reportview-container { background-color: #FFFFFF; }
-    h1 { color: #1F497D !important; font-family: 'Arial Black', Gadget, sans-serif; font-size: 32px !important; }
-    h4 { color: #1F497D !important; font-weight: bold; margin-top: 15px; margin-bottom: 10px; }
-    div[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: bold; color: #1F497D !important; }
+    h1 { color: #1F497D !important; font-family: 'Arial Black', Gadget, sans-serif; font-size: 30px !important; margin-bottom: 5px; }
+    div[data-testid="stMetricValue"] { font-size: 26px !important; font-weight: bold; color: #1F497D !important; }
+    /* Ajuste para evitar que los contenedores de gráficos colapsen */
+    div[data-testid="stColumn"] { padding: 10px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -71,16 +72,15 @@ def get_operational_data():
     df['Utilizacion_Habilitado'] = ((df['Habilitadas'] / df['Recolectadas']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     df['Porcentaje_Ubicado'] = ((df['Ubicadas'] / df['Recolectadas']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     
-    # Texto formateado para los ejes temporales
     df['Dia_Texto'] = df['Fecha'].dt.strftime('%a %d')
     return df
 
 df = get_operational_data()
 
-# --- HEADER DISEÑADO ---
+# --- HEADER ---
 st.markdown("<h1>👚 PRICE SHOES • Operaciones ropa</h1>", unsafe_allow_html=True)
-st.markdown("<p style='color:#1F497D; font-size:18px; font-weight:bold; margin-top:-15px; letter-spacing: 0.5px;'>Proceso de Muertos y cambios (Semana 21)</p>", unsafe_allow_html=True)
-st.markdown("<hr style='border: 0; height: 3px; background: #1F497D; margin-top:5px; margin-bottom:20px;'>", unsafe_allow_html=True)
+st.markdown("<p style='color:#1F497D; font-size:16px; font-weight:bold; margin-top:-10px;'>Proceso de Muertos y cambios (Semana 21)</p>", unsafe_allow_html=True)
+st.markdown("<hr style='border: 0; height: 2px; background: #1F497D; margin-top:0px; margin-bottom:15px;'>", unsafe_allow_html=True)
 
 # --- FILTROS SIDEBAR ---
 st.sidebar.markdown("### 🎛️ Filtros de Operación")
@@ -103,59 +103,57 @@ if len(fecha_rango) == 2:
 if not df_filtered.empty:
     kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
     with kpi_col1:
-        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#D9D9D9; border-left: 6px solid #1F497D;'><strong>Pzas Ropa Ingresadas</strong><br><span style='font-size:26px; font-weight:bold; color:#1F497D;'>{:,}</span></div>".format(df_filtered['Total_Ingresos'].sum()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:12px; border-radius:4px; background-color:#D9D9D9; border-left: 6px solid #1F497D;'><strong>Pzas Ropa Ingresadas</strong><br><span style='font-size:24px; font-weight:bold; color:#1F497D;'>{:,}</span></div>".format(df_filtered['Total_Ingresos'].sum()), unsafe_allow_html=True)
     with kpi_col2:
-        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#F0F4F8; border-left: 6px solid #1F497D;'><strong>Eficiencia Recorridos Prom.</strong><br><span style='font-size:26px; font-weight:bold; color:#1F497D;'>{:.1f}%</span></div>".format(df_filtered['Eficiencia_Recorridos'].mean()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:12px; border-radius:4px; background-color:#F0F4F8; border-left: 6px solid #1F497D;'><strong>Eficiencia Recorridos Prom.</strong><br><span style='font-size:24px; font-weight:bold; color:#1F497D;'>{:.1f}%</span></div>".format(df_filtered['Eficiencia_Recorridos'].mean()), unsafe_allow_html=True)
     with kpi_col3:
-        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#D9D9D9; border-left: 6px solid #1F497D;'><strong>Prendas Ubicadas (Piso)</strong><br><span style='font-size:26px; font-weight:bold; color:#1F497D;'>{:,}</span></div>".format(df_filtered['Ubicadas'].sum()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:12px; border-radius:4px; background-color:#D9D9D9; border-left: 6px solid #1F497D;'><strong>Prendas Ubicadas (Piso)</strong><br><span style='font-size:24px; font-weight:bold; color:#1F497D;'>{:,}</span></div>".format(df_filtered['Ubicadas'].sum()), unsafe_allow_html=True)
     with kpi_col4:
         diff_aduana = df_filtered['Fis_Aduana'].sum() - df_filtered['Sis_Aduana'].sum()
         status_color = "#27AE60" if diff_aduana >= 0 else "#C0392B"
-        st.markdown(f"<div style='padding:15px; border-radius:4px; background-color:#F0F4F8; border-left: 6px solid {status_color};'><strong>Desviación Aduana Ropa</strong><br><span style='font-size:26px; font-weight:bold; color:{status_color};'>{diff_aduana:+,}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='padding:12px; border-radius:4px; background-color:#F0F4F8; border-left: 6px solid {status_color};'><strong>Desviación Aduana Ropa</strong><br><span style='font-size:24px; font-weight:bold; color:{status_color};'>{diff_aduana:+,}</span></div>", unsafe_allow_html=True)
 
     st.write("")
 
-    # --- BLOQUE DE GRÁFICOS 1: COMPORTAMIENTO POR DÍA Y TIENDA ---
-    st.markdown("### 📊 Análisis Avanzado por Día y Sucursal")
+    # --- BLOQUE DE GRÁFICOS COMPLETO (REDISEÑO TOTAL DE ESPACIOS) ---
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown("#### 📈 Tendencia de Eficiencia de Recorridos por Día")
         fig_line = px.line(
             df_filtered.sort_values("Fecha"), 
             x="Dia_Texto", y="Eficiencia_Recorridos", color="Tienda",
             markers=True,
             color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
         )
+        # Título integrado internamente en Plotly para evitar cortes CSS
         fig_line.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white", height=320,
-            margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", y=1.1)
+            title={"text": "📈 Tendencia de Eficiencia de Recorridos por Día", "font": {"size": 16, "color": "#1F497D"}},
+            plot_bgcolor="white", paper_bgcolor="white", height=420,
+            margin=dict(l=40, r=20, t=60, b=40), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
         )
         fig_line.update_xaxes(showgrid=True, gridcolor='#D9D9D9', title="Día del Proceso")
         fig_line.update_yaxes(showgrid=True, gridcolor='#D9D9D9', title="% Eficiencia")
         st.plotly_chart(fig_line, use_container_width=True)
 
     with col2:
-        st.markdown("#### 📦 Volumen Total de Ingresos (Carga Operativa por Día)")
         fig_stack = px.bar(
             df_filtered.sort_values("Fecha"),
             x="Dia_Texto", y="Total_Ingresos", color="Tienda",
             color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
         )
         fig_stack.update_layout(
-            barmode="stack", plot_bgcolor="white", paper_bgcolor="white", height=320,
-            margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", y=1.1)
+            title={"text": "📦 Volumen Total de Ingresos (Carga Operativa por Día)", "font": {"size": 16, "color": "#1F497D"}},
+            barmode="stack", plot_bgcolor="white", paper_bgcolor="white", height=420,
+            margin=dict(l=40, r=20, t=60, b=40), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
         )
         fig_stack.update_xaxes(showgrid=True, gridcolor='#D9D9D9', title="Día")
         fig_stack.update_yaxes(showgrid=True, gridcolor='#D9D9D9', title="Prendas Totales")
         st.plotly_chart(fig_stack, use_container_width=True)
 
-    # --- BLOQUE DE GRÁFICOS 2: EFICACIA COMERCIAL ---
-    col3, col4 = st.columns([2, 3])
+    # --- SEGUNDA FILA DE GRÁFICOS ---
+    col3, col4 = st.columns(2)
 
     with col3:
-        st.markdown("#### 🎯 Eficiencia Global por Sucursal")
-        # CORREGIDO: Agregado numeric_only=True para resolver el TypeError con versiones nuevas de Pandas
         df_tienda = df_filtered.groupby("Tienda").mean(numeric_only=True).reset_index()
         fig_bar = go.Figure()
         fig_bar.add_trace(go.Bar(
@@ -167,14 +165,14 @@ if not df_filtered.empty:
             name='% Comercial Ubicado', orientation='h', marker_color='#7F97B2'
         ))
         fig_bar.update_layout(
-            barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=300,
-            margin=dict(l=10, r=10, t=10, b=10), legend=dict(orientation="h", y=1.15)
+            title={"text": "🎯 Eficiencia Global Promedio por Sucursal", "font": {"size": 16, "color": "#1F497D"}},
+            barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=420,
+            margin=dict(l=40, r=20, t=60, b=40), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
         )
         fig_bar.update_xaxes(showgrid=True, gridcolor='#D9D9D9')
         st.plotly_chart(fig_bar, use_container_width=True)
 
     with col4:
-        st.markdown("#### 🔍 Dispersión: Relación de Prendas Ubicadas vs Éxito de Piso")
         fig_scatter = px.scatter(
             df_filtered, x="Ubicadas", y="Porcentaje_Ubicado", color="Tienda", 
             size="Total_Ingresos", text="Dia_Texto",
@@ -182,8 +180,9 @@ if not df_filtered.empty:
         )
         fig_scatter.update_traces(textposition='top center')
         fig_scatter.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white", height=300,
-            margin=dict(l=10, r=10, t=10, b=10), showlegend=False
+            title={"text": "🔍 Dispersión: Relación de Prendas Ubicadas vs Éxito de Piso", "font": {"size": 16, "color": "#1F497D"}},
+            plot_bgcolor="white", paper_bgcolor="white", height=420,
+            margin=dict(l=40, r=20, t=60, b=40), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
         )
         fig_scatter.update_xaxes(showgrid=True, gridcolor='#D9D9D9', title="Cantidad de Prendas en Piso")
         fig_scatter.update_yaxes(showgrid=True, gridcolor='#D9D9D9', title="% Éxito Ubicación")
@@ -216,4 +215,4 @@ if not df_filtered.empty:
 else:
     st.warning("No hay registros disponibles para los filtros seleccionados actualmente.")
 
-st.markdown("<p style='font-size:12px; color:#999999;'>CONFIDENCIAL • Dirección de Operaciones Ropa Price Shoes. Valores superiores al 100% corresponden al procesamiento de rezagos acumulados.</p>", unsafe_allow_html=True)
+st.markdown("<p style='font-size:12px; color:#999999;'>CONFIDENCIAL • Dirección de Operaciones Ropa Price Shoes.</p>", unsafe_allow_html=True)
