@@ -3,8 +3,8 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-# --- CONFIGURACIÓN DE BI (PRICE SHOES STYLE) ---
-st.set_page_config(page_title="Price Shoes - Control Operativo", layout="wide", page_icon="👟")
+# --- CONFIGURACIÓN DE BI (PRICE SHOES STYLE - OPERACIONES ROPA) ---
+st.set_page_config(page_title="Price Shoes - Operaciones Ropa", layout="wide", page_icon="👚")
 
 # Estilo CSS Inyectado para forzar la identidad de marca (Rosa Institucional y Negro Corporativo)
 st.markdown("""
@@ -83,14 +83,14 @@ def get_operational_data():
 
 df = get_operational_data()
 
-# --- HEADER DE MARCA ---
+# --- HEADER DE MARCA (CON DIVISIÓN OPERACIONES ROPA) ---
 st.title("👟 PRICE SHOES · Business Intelligence")
-st.markdown("<p style='color:#E6007E; font-weight:bold; margin-top:-15px;'>MÓDULO DE CONTROL: INDICADORES DE ACONDICIONAMIENTO (SEM 21)</p>", unsafe_allow_html=True)
+st.markdown("<p style='color:#E6007E; font-size:18px; font-weight:bold; margin-top:-15px;'>MÓDULO: OPERACIONES ROPA – CONTROL DE ACONDICIONAMIENTO Y PISO (SEM 21)</p>", unsafe_allow_html=True)
 st.divider()
 
 # --- FILTROS SIDEBAR ---
 st.sidebar.markdown("### 🎛️ Filtros de Operación")
-tienda = st.sidebar.selectbox("Sucursal / Almacén", ["Todas las Tiendas"] + list(df['Tienda'].unique()))
+tienda = st.sidebar.selectbox("Sucursal / Almacén Ropa", ["Todas las Tiendas"] + list(df['Tienda'].unique()))
 
 min_date = df['Fecha'].min().date()
 max_date = df['Fecha'].max().date()
@@ -109,16 +109,16 @@ if len(fecha_rango) == 2:
 if not df_filtered.empty:
     kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
     with kpi_col1:
-        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#111111; border-top: 4px solid #E6007E; color:white;'><strong>Pzas Ingresadas (Total)</strong><br><span style='font-size:26px; font-weight:bold; color:#FFFFFF;'>{:,}</span></div>".format(df_filtered['Total_Ingresos'].sum()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#111111; border-top: 4px solid #E6007E; color:white;'><strong>Pzas Ropa Ingresadas</strong><br><span style='font-size:26px; font-weight:bold; color:#FFFFFF;'>{:,}</span></div>".format(df_filtered['Total_Ingresos'].sum()), unsafe_allow_html=True)
     with kpi_col2:
         st.markdown("<div style='padding:15px; border-radius:4px; background-color:#FDF2F8; border-top: 4px solid #E6007E; color:black;'><strong>Eficiencia Recorridos</strong><br><span style='font-size:26px; font-weight:bold; color:#E6007E;'>{:.1f}%</span></div>".format(df_filtered['Eficiencia_Recorridos'].mean()), unsafe_allow_html=True)
     with kpi_col3:
-        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#FDF2F8; border-top: 4px solid #000000; color:black;'><strong>Unidades Ubicadas (Piso)</strong><br><span style='font-size:26px; font-weight:bold; color:#111111;'>{:,}</span></div>".format(df_filtered['Ubicadas'].sum()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#FDF2F8; border-top: 4px solid #000000; color:black;'><strong>Prendas Ubicadas (Piso)</strong><br><span style='font-size:26px; font-weight:bold; color:#111111;'>{:,}</span></div>".format(df_filtered['Ubicadas'].sum()), unsafe_allow_html=True)
     with kpi_col4:
         diff_aduana = df_filtered['Fis_Aduana'].sum() - df_filtered['Sis_Aduana'].sum()
         status_color = "#2ECC71" if diff_aduana >= 0 else "#E74C3C"
         bg_card = "#EAFAF1" if diff_aduana >= 0 else "#FDEDEC"
-        st.markdown(f"<div style='padding:15px; border-radius:4px; background-color:{bg_card}; border-top: 4px solid {status_color}; color:black;'><strong>Desviación de Aduana</strong><br><span style='font-size:26px; font-weight:bold; color:{status_color};'>{diff_aduana:+,}</span></div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='padding:15px; border-radius:4px; background-color:{bg_card}; border-top: 4px solid {status_color}; color:black;'><strong>Desviación Aduana Ropa</strong><br><span style='font-size:26px; font-weight:bold; color:{status_color};'>{diff_aduana:+,}</span></div>", unsafe_allow_html=True)
 
     st.write("")
 
@@ -126,5 +126,80 @@ if not df_filtered.empty:
     col_izq, col_der = st.columns([3, 2])
 
     with col_izq:
-        st.markdown("#### 📉 Flujo de Carga Temporal: Entradas vs Ubicación en Tienda")
-        df_
+        st.markdown("#### 📉 Flujo de Carga Temporal: Entradas de Ropa vs Ubicación en Piso")
+        df_trend = df_filtered.groupby("Fecha").sum().reset_index()
+        
+        fig_dual = go.Figure()
+        # Barras corporativas: Negro/Gris oscuro para volumen bruto ingresado
+        fig_dual.add_trace(go.Bar(
+            x=df_trend['Fecha'], y=df_trend['Total_Ingresos'],
+            name='Total Ingresos (Aduana+Muertos+Cajas)', marker_color='#111111', opacity=0.90
+        ))
+        # Línea Rosa Price Shoes para éxito de acomodo en piso de venta
+        fig_dual.add_trace(go.Scatter(
+            x=df_trend['Fecha'], y=df_trend['Ubicadas'],
+            name='Prendas Ubicadas en Piso', mode='lines+markers',
+            line=dict(color='#E6007E', width=4), marker=dict(size=9, symbol="square")
+        ))
+        fig_dual.update_layout(
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            margin=dict(l=10, r=10, t=30, b=10), hovermode="x unified", height=380,
+            plot_bgcolor="white", paper_bgcolor="white"
+        )
+        fig_dual.update_xaxes(showgrid=True, gridcolor='#F2F2F2')
+        fig_dual.update_yaxes(showgrid=True, gridcolor='#F2F2F2')
+        st.plotly_chart(fig_dual, use_container_width=True)
+
+    with col_der:
+        st.markdown("#### 🏆 Productividad y % Ubicado Ropa por Sucursal")
+        df_tienda = df_filtered.groupby("Tienda").mean().reset_index()
+        
+        fig_bar = go.Figure()
+        # Barras corporativas
+        fig_bar.add_trace(go.Bar(
+            y=df_tienda['Tienda'], x=df_tienda['Eficiencia_Recorridos'],
+            name='% Eficiencia Recorridos', orientation='h', marker_color='#E6007E'
+        ))
+        fig_bar.add_trace(go.Bar(
+            y=df_tienda['Tienda'], x=df_tienda['Porcentaje_Ubicado'],
+            name='% Comercial Ubicado', orientation='h', marker_color='#111111'
+        ))
+        fig_bar.update_layout(
+            barmode='group', legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
+            margin=dict(l=10, r=10, t=30, b=10), height=380,
+            plot_bgcolor="white", paper_bgcolor="white"
+        )
+        fig_bar.update_xaxes(showgrid=True, gridcolor='#F2F2F2')
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    # --- MATRIZ DE AUDITORÍA OPERATIVA ---
+    st.markdown("#### 🔍 Matriz de Auditoría y Flujo de Salidas - División Ropa")
+    
+    st.dataframe(
+        df_filtered.sort_values("Fecha", ascending=False),
+        column_config={
+            "Fecha": st.column_config.DateColumn("Fecha de Operación"),
+            "Tienda": "Sucursal",
+            "Sis_Aduana": "Aduana (Sistema)",
+            "Fis_Aduana": "Aduana (Físico)",
+            "Muertos": "Muertos",
+            "Cajas": "Cajas",
+            "Total_Ingresos": "Total Ingresos",
+            # Barra de progreso en Negro para cumplimiento de rutas
+            "Eficiencia_Recorridos": st.column_config.ProgressColumn(
+                "Eficiencia Recorridos", format="%.0f%%", min_value=0, max_value=280, color="dark"
+            ),
+            "Utilizacion_Habilitado": st.column_config.NumberColumn(
+                "Utilización Habilitado", format="%.1f%%"
+            ),
+            # Nueva columna % Ubicado con barra fucsia brillante de Price Shoes
+            "Porcentaje_Ubicado": st.column_config.ProgressColumn(
+                "% Ubicado (Éxito de Piso)", format="%.0f%%", min_value=0, max_value=260, color="pink"
+            ),
+            "Ubicadas": "Prendas Totales en Piso"
+        }, hide_index=True, use_container_width=True
+    )
+else:
+    st.warning("No hay registros disponibles para los filtros seleccionados actualmente.")
+
+st.markdown("<p style='font-size:12px; color:gray;'>CONFIDENCIAL - Uso exclusivo para la Dirección de Operaciones Ropa Price Shoes. Valores superiores al 100% indican procesamiento de prendas rezagadas de turnos previos.</p>", unsafe_allow_html=True)
