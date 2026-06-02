@@ -156,4 +156,36 @@ if not df_filtered.empty:
             barmode='group', legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
             margin=dict(l=10, r=10, t=30, b=10), height=380
         )
-        st.plotly_chart(fig_bar,
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    # --- TABLA DE AUDITORÍA CON MATRIZ DE COLOR EN LOS PORCENTAJES ---
+    st.markdown("#### 🔍 Matriz de Auditoría Operativa con Indicadores")
+    
+    # Formateamos la visualización final agregando barras de progreso de color directo a la tabla
+    st.dataframe(
+        df_filtered.sort_values("Fecha", ascending=False),
+        column_config={
+            "Fecha": st.column_config.DateColumn("Día de Operación"),
+            "Tienda": "Sucursal",
+            "Sis_Aduana": "Aduana (Sistema)",
+            "Fis_Aduana": "Aduana (Físico)",
+            "Muertos": "Muertos",
+            "Cajas": "Cajas",
+            "Total_Ingresos": "Ingresos Totales",
+            "Eficiencia_Recorridos": st.column_config.ProgressColumn(
+                "Eficiencia Recorridos", format="%.0f%%", min_value=0, max_value=280
+            ),
+            "Utilizacion_Habilitado": st.column_config.NumberColumn(
+                "Utilización Habilitado", format="%.1f%%"
+            ),
+            # NUEVA COLUMNA VISUALIZADA: % Ubicado mapeado como una barra de progreso morada/azul
+            "Porcentaje_Ubicado": st.column_config.ProgressColumn(
+                "% Ubicado (Salida)", format="%.0f%%", min_value=0, max_value=260
+            ),
+            "Ubicadas": "Unidades en Piso"
+        }, hide_index=True, use_container_width=True
+    )
+else:
+    st.warning("No hay registros disponibles para los filtros seleccionados actualmente.")
+
+st.info("Nota de BI: Las eficiencias superiores al 100% reflejan el procesamiento de rezagos acumulados de turnos anteriores.")
