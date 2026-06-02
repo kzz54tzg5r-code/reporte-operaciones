@@ -12,9 +12,8 @@ st.markdown("""
     .reportview-container { background-color: #FFFFFF; }
     .main-title { color: #000000 !important; font-family: 'Arial', sans-serif; font-size: 34px !important; font-weight: 800; margin-bottom: 0px; }
     .sub-title { color: #E6007E !important; font-family: 'Arial', sans-serif; font-size: 15px !important; font-weight: bold; margin-top: -5px; letter-spacing: 0.5px; text-transform: uppercase; }
-    .graph-title { color: #1F497D !important; font-weight: bold; font-size: 16px; margin-top: 15px; margin-bottom: 10px; border-left: 4px solid #1F497D; padding-left: 8px; }
+    .graph-title { color: #1F497D !important; font-weight: bold; font-size: 16px; margin-top: 25px; margin-bottom: 10px; border-left: 4px solid #1F497D; padding-left: 8px; }
     div[data-testid="stMetricValue"] { font-size: 26px !important; font-weight: bold; color: #1F497D !important; }
-    div[data-testid="stColumn"] { padding: 5px !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -119,86 +118,75 @@ if not df_filtered.empty:
 
     st.write("")
 
-    # --- FILA DE GRÁFICOS 1 (CONFIGURACIÓN DE ESCALA AMPLIADA) ---
-    col1, col2 = st.columns(2)
+    # =========================================================================
+    # --- BLOQUE DE GRÁFICOS (VISTA DE ANCHO COMPLETO - 100%) ---
+    # =========================================================================
 
-    with col1:
-        st.markdown('<p class="graph-title">🎯 1. Eficiencia del Recorrido (Meta Objetivo 100%)</p>', unsafe_allow_html=True)
-        fig_line = px.line(
-            df_filtered.sort_values("Fecha"), 
-            x="Dia_Texto", y="Eficiencia_Recorridos", color="Tienda",
-            markers=True, color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
-        )
-        fig_line.add_hline(y=100.0, line_dash="dash", line_color="#C0392B", annotation_text="Meta 100%", annotation_position="top left")
-        
-        # Altura configurada a 480px para máxima visibilidad en pantalla de inicio
-        fig_line.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white", height=480,
-            margin=dict(l=50, r=20, t=20, b=50), legend=dict(orientation="h", y=1.08, x=0)
-        )
-        fig_line.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día")
-        fig_line.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="% Eficiencia Real")
-        st.plotly_chart(fig_line, use_container_width=True)
+    # Gráfico 1 - Ancho Completo
+    st.markdown('<p class="graph-title">🎯 1. Eficiencia del Recorrido (Meta Objetivo 100%)</p>', unsafe_allow_html=True)
+    fig_line = px.line(
+        df_filtered.sort_values("Fecha"), 
+        x="Dia_Texto", y="Eficiencia_Recorridos", color="Tienda",
+        markers=True, color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
+    )
+    fig_line.add_hline(y=100.0, line_dash="dash", line_color="#C0392B", annotation_text="Meta 100%", annotation_position="top left")
+    fig_line.update_layout(
+        plot_bgcolor="white", paper_bgcolor="white", height=400,
+        margin=dict(l=40, r=40, t=20, b=40), legend=dict(orientation="h", y=1.1, x=0)
+    )
+    fig_line.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día")
+    fig_line.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="% Eficiencia Real")
+    st.plotly_chart(fig_line, use_container_width=True)
 
-    with col2:
-        st.markdown('<p class="graph-title">📦 2. Volumen de Prendas: Habilitado vs Ingreso Total</p>', unsafe_allow_html=True)
-        df_daily_totals = df_filtered.groupby("Dia_Texto").sum(numeric_only=True).reset_index()
-        
-        fig_grouped = go.Figure()
-        fig_grouped.add_trace(go.Bar(name='Ingreso Total', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Total_Ingresos'], marker_color='#1F497D'))
-        fig_grouped.add_trace(go.Bar(name='Prendas Habilitadas', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Habilitadas'], marker_color='#7F97B2'))
-        
-        # Altura configurada a 480px
-        fig_grouped.update_layout(
-            barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=480,
-            margin=dict(l=50, r=20, t=20, b=50), legend=dict(orientation="h", y=1.08, x=0)
-        )
-        fig_grouped.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día")
-        fig_grouped.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="Cantidad de Prendas")
-        st.plotly_chart(fig_grouped, use_container_width=True)
+    # Gráfico 2 - Ancho Completo
+    st.markdown('<p class="graph-title">📦 2. Volumen de Prendas: Habilitado vs Ingreso Total</p>', unsafe_allow_html=True)
+    df_daily_totals = df_filtered.groupby("Dia_Texto").sum(numeric_only=True).reset_index()
+    fig_grouped = go.Figure()
+    fig_grouped.add_trace(go.Bar(name='Ingreso Total', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Total_Ingresos'], marker_color='#1F497D'))
+    fig_grouped.add_trace(go.Bar(name='Prendas Habilitadas', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Habilitadas'], marker_color='#7F97B2'))
+    fig_grouped.update_layout(
+        barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=400,
+        margin=dict(l=40, r=40, t=20, b=40), legend=dict(orientation="h", y=1.1, x=0)
+    )
+    fig_grouped.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día")
+    fig_grouped.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="Cantidad de Prendas")
+    st.plotly_chart(fig_grouped, use_container_width=True)
 
-    # --- FILA DE GRÁFICOS 2 (CONFIGURACIÓN DE ESCALA AMPLIADA) ---
-    col3, col4 = st.columns(2)
+    # Gráfico 3 - Ancho Completo
+    st.markdown('<p class="graph-title">📊 3. Porcentaje de Ubicado (Efectividad Máxima en Piso)</p>', unsafe_allow_html=True)
+    df_tienda = df_filtered.groupby("Tienda").mean(numeric_only=True).reset_index()
+    fig_bar = go.Figure()
+    fig_bar.add_trace(go.Bar(
+        y=df_tienda['Tienda'], x=df_tienda['Porcentaje_Ubicado'],
+        orientation='h', marker_color='#5B9BD5',
+        text=[f"{val:.1f}%" for val in df_tienda['Porcentaje_Ubicado']], textposition='inside'
+    ))
+    fig_bar.update_layout(
+        plot_bgcolor="white", paper_bgcolor="white", height=380,
+        margin=dict(l=60, r=40, t=20, b=40)
+    )
+    fig_bar.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="% Efectividad Real Comercial", range=[0, 105])
+    st.plotly_chart(fig_bar, use_container_width=True)
 
-    with col3:
-        st.markdown('<p class="graph-title">📊 3. Porcentaje de Ubicado (Efectividad Máxima en Piso)</p>', unsafe_allow_html=True)
-        df_tienda = df_filtered.groupby("Tienda").mean(numeric_only=True).reset_index()
-        
-        fig_bar = go.Figure()
-        fig_bar.add_trace(go.Bar(
-            y=df_tienda['Tienda'], x=df_tienda['Porcentaje_Ubicado'],
-            orientation='h', marker_color='#5B9BD5',
-            text=[f"{val:.1f}%" for val in df_tienda['Porcentaje_Ubicado']], textposition='inside'
-        ))
-        # Altura horizontal de tiendas configurada a 480px
-        fig_bar.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white", height=480,
-            margin=dict(l=60, r=30, t=20, b=50)
-        )
-        fig_bar.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="% Efectividad Real Comercial", range=[0, 105])
-        st.plotly_chart(fig_bar, use_container_width=True)
+    # Gráfico 4 - Ancho Completo
+    st.markdown('<p class="graph-title">🍰 4. % de Participación en Composición de Ingresos</p>', unsafe_allow_html=True)
+    tot_ing = df_filtered['Total_Ingresos'].sum()
+    if tot_ing > 0:
+        p_aduana = (df_filtered['Sis_Aduana'].sum() / tot_ing) * 100
+        p_muertos = (df_filtered['Muertos'].sum() / tot_ing) * 100
+        p_cajas = max(0, 100.0 - (p_aduana + p_muertos))
+    else:
+        p_aduana, p_muertos, p_cajas = 0, 0, 0
 
-    with col4:
-        st.markdown('<p class="graph-title">🍰 4. % de Participación en Composición de Ingresos</p>', unsafe_allow_html=True)
-        
-        tot_ing = df_filtered['Total_Ingresos'].sum()
-        if tot_ing > 0:
-            p_aduana = (df_filtered['Sis_Aduana'].sum() / tot_ing) * 100
-            p_muertos = (df_filtered['Muertos'].sum() / tot_ing) * 100
-            p_cajas = max(0, 100.0 - (p_aduana + p_muertos))  # Composición proporcional matemática
-        else:
-            p_aduana, p_muertos, p_cajas = 0, 0, 0
+    labels = ['Aduana Sistema', 'Muertos', 'Cajas']
+    values = [p_aduana, p_muertos, p_cajas]
+    fig_donut = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.4, marker=dict(colors=['#1F497D', '#E6007E', '#A6A6A6']))])
+    fig_donut.update_layout(
+        plot_bgcolor="white", paper_bgcolor="white", height=420,
+        margin=dict(l=40, r=40, t=20, b=20), legend=dict(orientation="h", y=-0.1, x=0.35)
+    )
+    st.plotly_chart(fig_donut, use_container_width=True)
 
-        labels = ['Aduana Sistema', 'Muertos', 'Cajas']
-        values = [p_aduana, p_muertos, p_cajas]
-        
-        # Dona de participación a gran escala (480px)
-        fig_donut = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.4, marker=dict(colors=['#1F497D', '#E6007E', '#A6A6A6']))])
-        fig_donut.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white", height=480,
-            margin=dict(l=30, r=30, t=20, b=20), legend=dict(orientation="v", y=0.5, x=0.85)
-        )
-        st.plotly_chart(fig_donut, use_container_width=True)
 
     # --- MATRIZ DE AUDITORÍA CON ALERTAS ---
     st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
@@ -217,7 +205,6 @@ if not df_filtered.empty:
     
     cols_to_show = ["Fecha", "Tienda", "Aduana Sist.", "Aduana Fís.", "Muertos", "Cajas", "Total Ingresos", "Ef. Recorridos %", "Ubicado %", "Prendas Piso"]
     
-    # Formateador condicional nativo (Evita usar matplotlib para prevenir ImportError)
     def color_semaforo(val):
         try:
             if val < 85.0:
