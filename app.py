@@ -3,20 +3,20 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 
-# --- CONFIGURACIÓN DE BI (PRICE SHOES STYLE - OPERACIONES ROPA) ---
+# --- CONFIGURACIÓN DE INTERFAZ CORPORATIVA ---
 st.set_page_config(page_title="Price Shoes - Operaciones Ropa", layout="wide", page_icon="👚")
 
-# Estilo CSS Inyectado para forzar la identidad de marca (Rosa Institucional y Negro Corporativo)
+# Forzar paleta corporativa mediante CSS (Azul #1F497D y Gris #D9D9D9)
 st.markdown("""
     <style>
     .reportview-container { background-color: #FFFFFF; }
-    h1 { color: #000000 !important; font-family: 'Arial Black', Gadget, sans-serif; }
-    h4 { color: #111111 !important; font-weight: bold; }
-    div[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: bold; }
+    h1 { color: #1F497D !important; font-family: 'Arial Black', Gadget, sans-serif; font-size: 32px !important; }
+    h4 { color: #1F497D !important; font-weight: bold; }
+    div[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: bold; color: #1F497D !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- DATASET CONSOLIDADO DEL PDF ---
+# --- DATASET CONSOLIDADO OPERATIVO ---
 @st.cache_data
 def get_operational_data():
     data = [
@@ -65,7 +65,7 @@ def get_operational_data():
     df = pd.DataFrame(data)
     df['Fecha'] = pd.to_datetime(df['Fecha'])
 
-    # Métricas de negocio
+    # Métricas de negocio calculadas
     df['Total_Ingresos'] = df['Fis_Aduana'] + df['Muertos'] + df['Cajas']
     df['Eficiencia_Recorridos'] = (df['Real_Rec'] / df['Meta_Rec']) * 100
     df['Utilizacion_Habilitado'] = (
@@ -73,7 +73,6 @@ def get_operational_data():
         .replace([float('inf'), -float('inf')], 0)
         .fillna(0) * 100
     )
-    # % Ubicado (Eficiencia de salida a piso sobre lo recolectado)
     df['Porcentaje_Ubicado'] = (
         (df['Ubicadas'] / df['Recolectadas'])
         .replace([float('inf'), -float('inf')], 0)
@@ -83,10 +82,10 @@ def get_operational_data():
 
 df = get_operational_data()
 
-# --- HEADER DE MARCA (CON DIVISIÓN OPERACIONES ROPA) ---
-st.title("👟 PRICE SHOES · Business Intelligence")
-st.markdown("<p style='color:#E6007E; font-size:18px; font-weight:bold; margin-top:-15px;'>MÓDULO: OPERACIONES ROPA – CONTROL DE ACONDICIONAMIENTO Y PISO (SEM 21)</p>", unsafe_allow_html=True)
-st.divider()
+# --- HEADER DISEÑADO CON NUEVA IDENTIDAD EJECUTIVA ---
+st.markdown("<h1>👚 PRICE SHOES • Operaciones ropa</h1>", unsafe_allow_html=True)
+st.markdown("<p style='color:#1F497D; font-size:18px; font-weight:bold; margin-top:-15px; letter-spacing: 0.5px;'>Proceso de Muertos y cambios (Semana 21)</p>", unsafe_allow_html=True)
+st.markdown("<hr style='border: 0; height: 3px; background: #1F497D; margin-top:5px; margin-bottom:20px;'>", unsafe_allow_html=True)
 
 # --- FILTROS SIDEBAR ---
 st.sidebar.markdown("### 🎛️ Filtros de Operación")
@@ -96,7 +95,7 @@ min_date = df['Fecha'].min().date()
 max_date = df['Fecha'].max().date()
 fecha_rango = st.sidebar.date_input("Rango Temporal", [min_date, max_date])
 
-# Aplicar filtros
+# Aplicar filtros dinámicos
 df_filtered = df.copy()
 if tienda != "Todas las Tiendas":
     df_filtered = df_filtered[df_filtered['Tienda'] == tienda]
@@ -105,83 +104,82 @@ if len(fecha_rango) == 2:
     start_date, end_date = fecha_rango
     df_filtered = df_filtered[(df_filtered['Fecha'].dt.date >= start_date) & (df_filtered['Fecha'].dt.date <= end_date)]
 
-# --- TARJETAS KPI ESTILO COMPAÑÍA (ALTO IMPACTO) ---
+# --- TARJETAS KPI EN AZUL ÉNFASIS Y FONDO GRIS ---
 if not df_filtered.empty:
     kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
     with kpi_col1:
-        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#111111; border-top: 4px solid #E6007E; color:white;'><strong>Pzas Ropa Ingresadas</strong><br><span style='font-size:26px; font-weight:bold; color:#FFFFFF;'>{:,}</span></div>".format(df_filtered['Total_Ingresos'].sum()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#D9D9D9; border-left: 6px solid #1F497D;'><strong>Pzas Ropa Ingresadas</strong><br><span style='font-size:26px; font-weight:bold; color:#1F497D;'>{:,}</span></div>".format(df_filtered['Total_Ingresos'].sum()), unsafe_allow_html=True)
     with kpi_col2:
-        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#FDF2F8; border-top: 4px solid #E6007E; color:black;'><strong>Eficiencia Recorridos</strong><br><span style='font-size:26px; font-weight:bold; color:#E6007E;'>{:.1f}%</span></div>".format(df_filtered['Eficiencia_Recorridos'].mean()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#F0F4F8; border-left: 6px solid #1F497D;'><strong>Eficiencia Recorridos</strong><br><span style='font-size:26px; font-weight:bold; color:#1F497D;'>{:.1f}%</span></div>".format(df_filtered['Eficiencia_Recorridos'].mean()), unsafe_allow_html=True)
     with kpi_col3:
-        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#FDF2F8; border-top: 4px solid #000000; color:black;'><strong>Prendas Ubicadas (Piso)</strong><br><span style='font-size:26px; font-weight:bold; color:#111111;'>{:,}</span></div>".format(df_filtered['Ubicadas'].sum()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:15px; border-radius:4px; background-color:#D9D9D9; border-left: 6px solid #1F497D;'><strong>Prendas Ubicadas (Piso)</strong><br><span style='font-size:26px; font-weight:bold; color:#1F497D;'>{:,}</span></div>".format(df_filtered['Ubicadas'].sum()), unsafe_allow_html=True)
     with kpi_col4:
         diff_aduana = df_filtered['Fis_Aduana'].sum() - df_filtered['Sis_Aduana'].sum()
-        status_color = "#2ECC71" if diff_aduana >= 0 else "#E74C3C"
-        bg_card = "#EAFAF1" if diff_aduana >= 0 else "#FDEDEC"
-        st.markdown(f"<div style='padding:15px; border-radius:4px; background-color:{bg_card}; border-top: 4px solid {status_color}; color:black;'><strong>Desviación Aduana Ropa</strong><br><span style='font-size:26px; font-weight:bold; color:{status_color};'>{diff_aduana:+,}</span></div>", unsafe_allow_html=True)
+        status_color = "#27AE60" if diff_aduana >= 0 else "#C0392B"
+        st.markdown(f"<div style='padding:15px; border-radius:4px; background-color:#F0F4F8; border-left: 6px solid {status_color};'><strong>Desviación Aduana Ropa</strong><br><span style='font-size:26px; font-weight:bold; color:{status_color};'>{diff_aduana:+,}</span></div>", unsafe_allow_html=True)
 
     st.write("")
 
-    # --- CUADRO DE GRÁFICOS AVANZADOS ---
+    # --- CUADRO DE GRÁFICOS COORDINADOS EN PALETA DE COLOR ---
     col_izq, col_der = st.columns([3, 2])
 
     with col_izq:
-        st.markdown("#### 📉 Flujo de Carga Temporal: Entradas de Ropa vs Ubicación en Piso")
+        st.markdown("#### 📉 Carga Operativa: Volumen vs Éxito de Ubicación")
         df_trend = df_filtered.groupby("Fecha").sum().reset_index()
         
         fig_dual = go.Figure()
-        # Barras corporativas: Negro/Gris oscuro para volumen bruto ingresado
+        # Barras en Gris Oscuro 25% para representar la base total de ingresos
         fig_dual.add_trace(go.Bar(
             x=df_trend['Fecha'], y=df_trend['Total_Ingresos'],
-            name='Total Ingresos (Aduana+Muertos+Cajas)', marker_color='#111111', opacity=0.90
+            name='Total Ingresos (Ropa)', marker_color='#999999', opacity=0.85
         ))
-        # Línea Rosa Price Shoes para éxito de acomodo en piso de venta
+        # Línea en Azul Énfasis 1 para el volumen colocado con éxito
         fig_dual.add_trace(go.Scatter(
             x=df_trend['Fecha'], y=df_trend['Ubicadas'],
-            name='Prendas Ubicadas en Piso', mode='lines+markers',
-            line=dict(color='#E6007E', width=4), marker=dict(size=9, symbol="square")
+            name='Prendas Ubicadas', mode='lines+markers',
+            line=dict(color='#1F497D', width=4), marker=dict(size=8, symbol="diamond")
         ))
         fig_dual.update_layout(
             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
             margin=dict(l=10, r=10, t=30, b=10), hovermode="x unified", height=380,
             plot_bgcolor="white", paper_bgcolor="white"
         )
-        fig_dual.update_xaxes(showgrid=True, gridcolor='#F2F2F2')
-        fig_dual.update_yaxes(showgrid=True, gridcolor='#F2F2F2')
+        fig_dual.update_xaxes(showgrid=True, gridcolor='#D9D9D9')
+        fig_dual.update_yaxes(showgrid=True, gridcolor='#D9D9D9')
         st.plotly_chart(fig_dual, use_container_width=True)
 
     with col_der:
-        st.markdown("#### 🏆 Productividad y % Ubicado Ropa por Sucursal")
+        st.markdown("#### 🏆 Métricas Promedio de Ropa por Sucursal")
         df_tienda = df_filtered.groupby("Tienda").mean().reset_index()
         
         fig_bar = go.Figure()
-        # Barras corporativas
+        # Comparativa usando las dos tonalidades solicitadas
         fig_bar.add_trace(go.Bar(
             y=df_tienda['Tienda'], x=df_tienda['Eficiencia_Recorridos'],
-            name='% Eficiencia Recorridos', orientation='h', marker_color='#E6007E'
+            name='% Eficiencia Recorridos', orientation='h', marker_color='#1F497D'
         ))
         fig_bar.add_trace(go.Bar(
             y=df_tienda['Tienda'], x=df_tienda['Porcentaje_Ubicado'],
-            name='% Comercial Ubicado', orientation='h', marker_color='#111111'
+            name='% Comercial Ubicado', orientation='h', marker_color='#7F97B2'
         ))
         fig_bar.update_layout(
             barmode='group', legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
             margin=dict(l=10, r=10, t=30, b=10), height=380,
             plot_bgcolor="white", paper_bgcolor="white"
         )
-        fig_bar.update_xaxes(showgrid=True, gridcolor='#F2F2F2')
+        fig_bar.update_xaxes(showgrid=True, gridcolor='#D9D9D9')
         st.plotly_chart(fig_bar, use_container_width=True)
 
-    # --- MATRIZ DE AUDITORÍA OPERATIVA ---
-    st.markdown("#### 🔍 Matriz de Auditoría y Flujo de Salidas - División Ropa")
+    # --- MATRIZ DE AUDITORÍA CON INDICADORES NATIVOS COMPATIBLES ---
+    st.markdown("#### 🔍 Matriz General de Auditoría Operativa")
     
     st.dataframe(
         df_filtered.sort_values("Fecha", ascending=False),
         column_config={
-            "Fecha": st.column_config.DateColumn("Fecha de Operación"),
+            "Fecha": st.column_config.DateColumn("Fecha Operación"),
             "Tienda": "Sucursal",
-            "Sis_Aduana": "Aduana (Sistema)",
-            "Fis_Aduana": "Aduana (Físico)",
+            "Sis_Aduana": "Aduana (Sist)",
+            "Fis_Aduana": "Aduana (Fís)",
             "Muertos": "Muertos",
             "Cajas": "Cajas",
             "Total_Ingresos": "Total Ingresos",
@@ -191,13 +189,14 @@ if not df_filtered.empty:
             "Utilizacion_Habilitado": st.column_config.NumberColumn(
                 "Utilización Habilitado", format="%.1f%%"
             ),
+            # Barra de progreso optimizada usando el código hexadecimal del Azul Énfasis 1 solicitado
             "Porcentaje_Ubicado": st.column_config.ProgressColumn(
-                "% Ubicado (Éxito de Piso)", format="%.0f%%", min_value=0, max_value=260, color="#E6007E"
+                "% Ubicado (Éxito)", format="%.0f%%", min_value=0, max_value=260, color="#1F497D"
             ),
-            "Ubicadas": "Prendas Totales en Piso"
+            "Ubicadas": "Prendas en Piso"
         }, hide_index=True, use_container_width=True
     )
 else:
     st.warning("No hay registros disponibles para los filtros seleccionados actualmente.")
 
-st.markdown("<p style='font-size:12px; color:gray;'>CONFIDENCIAL - Uso exclusivo para la Dirección de Operaciones Ropa Price Shoes. Valores superiores al 100% indican procesamiento de prendas rezagadas de turnos previos.</p>", unsafe_allow_html=True)
+st.markdown("<p style='font-size:12px; color:#999999;'>CONFIDENCIAL • Dirección de Operaciones Ropa Price Shoes. Valores superiores al 100% corresponden al procesamiento de rezagos acumulados.</p>", unsafe_allow_html=True)
