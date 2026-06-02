@@ -72,7 +72,7 @@ def get_operational_data():
     df['Eficiencia_Recorridos'] = (df['Real_Rec'] / df['Meta_Rec']) * 100
     df['Utilizacion_Habilitado'] = ((df['Habilitadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     
-    # Capar el porcentaje de ubicación lógicamente sobre el total procesable
+    # Capar el porcentaje de ubicación de forma lógica sobre el volumen de ingresos procesables
     df['Porcentaje_Ubicado'] = ((df['Ubicadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     df['Porcentaje_Ubicado'] = df['Porcentaje_Ubicado'].clip(upper=100.0)
     
@@ -81,12 +81,12 @@ def get_operational_data():
 
 df = get_operational_data()
 
-# --- HEADER CORP ---
+# --- HEADER COPORATIVO ---
 st.markdown('<p class="main-title">👚 PRICE SHOES • Business Intelligence</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">MÓDULO: OPERACIONES ROPA – CONTROL DE ACONDICIONAMIENTO Y PISO (SEM 21)</p>', unsafe_allow_html=True)
 st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
 
-# --- FILTROS SIDEBAR ---
+# --- FILTROS EN SIDEBAR ---
 st.sidebar.markdown("### 🎛️ Filtros de Operación")
 tienda = st.sidebar.selectbox("Sucursal / Almacén Ropa", ["Todas las Tiendas"] + list(df['Tienda'].unique()))
 
@@ -94,7 +94,7 @@ min_date = df['Fecha'].min().date()
 max_date = df['Fecha'].max().date()
 fecha_rango = st.sidebar.date_input("Rango Temporal", [min_date, max_date])
 
-# Aplicación de filtros
+# Aplicación dinámica de filtros
 df_filtered = df.copy()
 if tienda != "Todas las Tiendas":
     df_filtered = df_filtered[df_filtered['Tienda'] == tienda]
@@ -103,7 +103,7 @@ if len(fecha_rango) == 2:
     start_date, end_date = fecha_rango
     df_filtered = df_filtered[(df_filtered['Fecha'].dt.date >= start_date) & (df_filtered['Fecha'].dt.date <= end_date)]
 
-# --- TARJETAS KPI ---
+# --- TARJETAS KPI DE INICIO ---
 if not df_filtered.empty:
     kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
     with kpi_col1:
@@ -119,7 +119,7 @@ if not df_filtered.empty:
 
     st.write("")
 
-    # --- FILA DE GRÁFICOS 1 ---
+    # --- FILA DE GRÁFICOS 1 (CONFIGURACIÓN DE ESCALA AMPLIADA) ---
     col1, col2 = st.columns(2)
 
     with col1:
@@ -129,33 +129,35 @@ if not df_filtered.empty:
             x="Dia_Texto", y="Eficiencia_Recorridos", color="Tienda",
             markers=True, color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
         )
-        # Línea de referencia de la meta al 100%
         fig_line.add_hline(y=100.0, line_dash="dash", line_color="#C0392B", annotation_text="Meta 100%", annotation_position="top left")
+        
+        # Altura configurada a 480px para máxima visibilidad en pantalla de inicio
         fig_line.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white", height=320,
-            margin=dict(l=40, r=20, t=10, b=40), legend=dict(orientation="h", y=1.15, x=0)
+            plot_bgcolor="white", paper_bgcolor="white", height=480,
+            margin=dict(l=50, r=20, t=20, b=50), legend=dict(orientation="h", y=1.08, x=0)
         )
         fig_line.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día")
         fig_line.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="% Eficiencia Real")
         st.plotly_chart(fig_line, use_container_width=True)
 
     with col2:
-        st.markdown('<p class="graph-title">📦 2. % de Habilitado vs Ingreso Total</p>', unsafe_allow_html=True)
+        st.markdown('<p class="graph-title">📦 2. Volumen de Prendas: Habilitado vs Ingreso Total</p>', unsafe_allow_html=True)
         df_daily_totals = df_filtered.groupby("Dia_Texto").sum(numeric_only=True).reset_index()
         
         fig_grouped = go.Figure()
         fig_grouped.add_trace(go.Bar(name='Ingreso Total', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Total_Ingresos'], marker_color='#1F497D'))
         fig_grouped.add_trace(go.Bar(name='Prendas Habilitadas', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Habilitadas'], marker_color='#7F97B2'))
         
+        # Altura configurada a 480px
         fig_grouped.update_layout(
-            barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=320,
-            margin=dict(l=40, r=20, t=10, b=40), legend=dict(orientation="h", y=1.15, x=0)
+            barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=480,
+            margin=dict(l=50, r=20, t=20, b=50), legend=dict(orientation="h", y=1.08, x=0)
         )
         fig_grouped.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día")
         fig_grouped.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="Cantidad de Prendas")
         st.plotly_chart(fig_grouped, use_container_width=True)
 
-    # --- FILA DE GRÁFICOS 2 ---
+    # --- FILA DE GRÁFICOS 2 (CONFIGURACIÓN DE ESCALA AMPLIADA) ---
     col3, col4 = st.columns(2)
 
     with col3:
@@ -168,9 +170,10 @@ if not df_filtered.empty:
             orientation='h', marker_color='#5B9BD5',
             text=[f"{val:.1f}%" for val in df_tienda['Porcentaje_Ubicado']], textposition='inside'
         ))
+        # Altura horizontal de tiendas configurada a 480px
         fig_bar.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white", height=320,
-            margin=dict(l=40, r=20, t=10, b=40)
+            plot_bgcolor="white", paper_bgcolor="white", height=480,
+            margin=dict(l=60, r=30, t=20, b=50)
         )
         fig_bar.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="% Efectividad Real Comercial", range=[0, 105])
         st.plotly_chart(fig_bar, use_container_width=True)
@@ -178,26 +181,26 @@ if not df_filtered.empty:
     with col4:
         st.markdown('<p class="graph-title">🍰 4. % de Participación en Composición de Ingresos</p>', unsafe_allow_html=True)
         
-        # Calcular proporciones de volumen total solicitado
         tot_ing = df_filtered['Total_Ingresos'].sum()
         if tot_ing > 0:
             p_aduana = (df_filtered['Sis_Aduana'].sum() / tot_ing) * 100
             p_muertos = (df_filtered['Muertos'].sum() / tot_ing) * 100
-            p_cajas = max(0, 100.0 - (p_aduana + p_muertos))  # El resto son cajas
+            p_cajas = max(0, 100.0 - (p_aduana + p_muertos))  # Composición proporcional matemática
         else:
             p_aduana, p_muertos, p_cajas = 0, 0, 0
 
         labels = ['Aduana Sistema', 'Muertos', 'Cajas']
         values = [p_aduana, p_muertos, p_cajas]
         
+        # Dona de participación a gran escala (480px)
         fig_donut = go.Figure(data=[go.Pie(labels=labels, values=values, hole=.4, marker=dict(colors=['#1F497D', '#E6007E', '#A6A6A6']))])
         fig_donut.update_layout(
-            plot_bgcolor="white", paper_bgcolor="white", height=320,
-            margin=dict(l=20, r=20, t=10, b=10), legend=dict(orientation="v", y=0.5, x=0.8)
+            plot_bgcolor="white", paper_bgcolor="white", height=480,
+            margin=dict(l=30, r=30, t=20, b=20), legend=dict(orientation="v", y=0.5, x=0.85)
         )
         st.plotly_chart(fig_donut, use_container_width=True)
 
-    # --- MATRIZ DE AUDITORÍA CON SEMÁFORO INTELIGENTE ---
+    # --- MATRIZ DE AUDITORÍA CON ALERTAS ---
     st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
     
     df_table = df_filtered.sort_values("Fecha", ascending=False).copy()
@@ -214,13 +217,13 @@ if not df_filtered.empty:
     
     cols_to_show = ["Fecha", "Tienda", "Aduana Sist.", "Aduana Fís.", "Muertos", "Cajas", "Total Ingresos", "Ef. Recorridos %", "Ubicado %", "Prendas Piso"]
     
-    # Marcador de Alerta de Desempeño Operativo sin dependencias de Matplotlib
+    # Formateador condicional nativo (Evita usar matplotlib para prevenir ImportError)
     def color_semaforo(val):
         try:
             if val < 85.0:
-                return 'background-color: #FADBD8; color: #78281F; font-weight: bold;'  # Alerta (Rojo suave)
+                return 'background-color: #FADBD8; color: #78281F; font-weight: bold;'
             elif val >= 100.0:
-                return 'background-color: #D4E6F1; color: #1B4F72; font-weight: bold;'  # Meta Alcanzada (Azul suave)
+                return 'background-color: #D4E6F1; color: #1B4F72; font-weight: bold;'
             return ''
         except:
             return ''
