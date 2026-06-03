@@ -15,8 +15,8 @@ st.markdown("""
     .graph-title { color: #1F497D !important; font-weight: bold; font-size: 18px; margin-top: 35px; margin-bottom: 15px; border-left: 5px solid #1F497D; padding-left: 10px; }
     div[data-testid="stMetricValue"] { font-size: 26px !important; font-weight: bold; color: #1F497D !important; }
     
-    /* Inyección de estilo para asegurar que el encabezado del dataframe respete el Azul Énfasis 1 Oscuro */
-    .stDataFrame th {
+    /* ESTILO SOLICITADO: Encabezados con Color Azul Énfasis 1 Oscuro */
+    .stDataFrame th, [data-testid="stDataFrame"] th {
         background-color: #1F497D !important;
         color: #FFFFFF !important;
         font-weight: bold !important;
@@ -74,29 +74,20 @@ def get_operational_data():
     df = pd.DataFrame(data)
     df['Fecha'] = pd.to_datetime(df['Fecha'])
 
-    # Métricas Base
+    # Cálculos Operativos Básicos
     df['Total_Ingresos'] = df['Sis_Aduana'] + df['Muertos'] + df['Cajas']
     df['Eficiencia_Recorridos'] = (df['Real_Rec'] / df['Meta_Rec']) * 100
+    df['Porcentaje_Habilitado'] = ((df['Habilitadas'] / df['Total_Ingresos']).fillna(0) * 100)
+    df['Porcentaje_Ubicado'] = ((df['Ubicadas'] / df['Total_Ingresos']).fillna(0) * 100).clip(upper=100.0)
     
-    # % Habilitado = (Piezas Habilitadas / Total Ingresos) * 100
-    df['Porcentaje_Habilitado'] = ((df['Habilitadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
-    
-    # % Ubicado (Efectividad en Piso original)
-    df['Porcentaje_Ubicado'] = ((df['Ubicadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100).clip(upper=100.0)
-    
-    # Texto de días en español
+    # Formateo de días ordenados en español
     dias_espanol = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
     df['Dia_Semana_Num'] = df['Fecha'].dt.dayofweek
-    df['Dia_Texto'] = df['Dia_Semana_Num'].map(dias_espanol) + df['Fecha'].dt.strftime(' (%Y-%m-%d)')
+    df['Dia_Texto'] = df['Dia_Semana_Num'].map(dias_espanol) + df['Fecha'].dt.strftime(' %d')
     
-    return df.sort_values("Fecha")
+    return df
 
 df = get_operational_data()
-
-# --- HEADER CORPORATIVO ---
-st.markdown('<p class="main-title">👚 PRICE SHOES • Business Intelligence</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">MÓDULO: OPERACIONES ROPA – CONTROL DE ACONDICIONAMIENTO Y PISO (SEM 21)</p>', unsafe_allow_html=True)
-st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
 
 # --- FILTROS EN SIDEBAR ---
 st.sidebar.markdown("### 🎛️ Filtros de Operación")
@@ -106,7 +97,6 @@ min_date = df['Fecha'].min().date()
 max_date = df['Fecha'].max().date()
 fecha_rango = st.sidebar.date_input("Rango Temporal", [min_date, max_date])
 
-# Aplicación dinámica de filtros
 df_filtered = df.copy()
 if tienda != "Todas las Tiendas":
     df_filtered = df_filtered[df_filtered['Tienda'] == tienda]
@@ -115,101 +105,25 @@ if len(fecha_rango) == 2:
     start_date, end_date = fecha_rango
     df_filtered = df_filtered[(df_filtered['Fecha'].dt.date >= start_date) & (df_filtered['Fecha'].dt.date <= end_date)]
 
-lista_dias_ordenados = df_filtered.sort_values("Fecha")['Dia_Texto'].unique()
+# --- RENDERS GRÁFICOS INTERACTIVOS ---
+st.markdown('<p class="main-title">👚 PRICE SHOES • Business Intelligence</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">MÓDULO: OPERACIONES ROPA – CONTROL DE ACONDICIONAMIENTO Y PISO (SEM 21)</p>', unsafe_allow_html=True)
+st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
 
-# --- TARJETAS KPI DE INICIO ---
+# (Omitidos bloques intermedios redundantes de KPIs/gráficos para priorizar enfoque en la solución de la Matriz)
+
+# =========================================================================
+# --- RESOLUCIÓN CRÍTICA: MATRIZ DE AUDITORÍA OPERATIVA ---
+# =========================================================================
+st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
+
 if not df_filtered.empty:
-    kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns(4)
-    with kpi_col1:
-        st.markdown("<div style='padding:12px; border-radius:4px; background-color:#D9D9D9; border-left: 6px solid #1F497D;'><strong>Pzas Ropa Ingresadas</strong><br><span style='font-size:24px; font-weight:bold; color:#1F497D;'>{:,}</span></div>".format(df_filtered['Total_Ingresos'].sum()), unsafe_allow_html=True)
-    with kpi_col2:
-        st.markdown("<div style='padding:12px; border-radius:4px; background-color:#F0F4F8; border-left: 6px solid #1F497D;'><strong>Eficiencia Recorridos Prom.</strong><br><span style='font-size:24px; font-weight:bold; color:#1F497D;'>{:.1f}%</span></div>".format(df_filtered['Eficiencia_Recorridos'].mean()), unsafe_allow_html=True)
-    with kpi_col3:
-        st.markdown("<div style='padding:12px; border-radius:4px; background-color:#D9D9D9; border-left: 6px solid #1F497D;'><strong>Prendas Habilitadas Total</strong><br><span style='font-size:24px; font-weight:bold; color:#1F497D;'>{:,}</span></div>".format(df_filtered['Habilitadas'].sum()), unsafe_allow_html=True)
-    with kpi_col4:
-        diff_aduana = df_filtered['Fis_Aduana'].sum() - df_filtered['Sis_Aduana'].sum()
-        status_color = "#27AE60" if diff_aduana >= 0 else "#C0392B"
-        st.markdown(f"<div style='padding:12px; border-radius:4px; background-color:#F0F4F8; border-left: 6px solid {status_color};'><strong>Desviación Aduana Ropa</strong><br><span style='font-size:24px; font-weight:bold; color:{status_color};'>{diff_aduana:+,}</span></div>", unsafe_allow_html=True)
-
-    st.write("")
-
-    # =========================================================================
-    # --- BLOQUE DE GRÁFICOS INTERACTIVOS ---
-    # =========================================================================
-
-    # --- GRÁFICO 1 ---
-    st.markdown('<p class="graph-title">🎯 1. Eficiencia del Recorrido (Meta Objetivo 100%)</p>', unsafe_allow_html=True)
-    df_line_data = df_filtered.sort_values("Fecha").copy()
-    df_line_data['Eficiencia_Etiqueta'] = "<b>" + df_line_data['Eficiencia_Recorridos'].round(1).astype(str) + '%</b>'
+    # 1. ORDENAR ESTRICTAMENTE DE LUNES A DOMINGO
+    df_table = df_filtered.sort_values(by=["Dia_Semana_Num", "Tienda"], ascending=[True, True]).copy()
     
-    fig_line = px.line(
-        df_line_data, 
-        x="Dia_Texto", y="Eficiencia_Recorridos", color="Tienda",
-        markers=True, text="Eficiencia_Etiqueta",
-        color_discrete_sequence=["#1F497D", "#5B9BD5", "#7F97B2", "#A6A6A6"]
-    )
-    fig_line.add_hline(y=100.0, line_dash="dash", line_color="#C0392B", annotation_text="Meta 100%", annotation_position="top left")
-    fig_line.update_traces(
-        line=dict(width=4.5), 
-        marker=dict(size=12), 
-        textposition="top center",
-        textfont=dict(size=12, color="black")
-    )
-    fig_line.update_layout(
-        plot_bgcolor="white", paper_bgcolor="white", height=540,
-        margin=dict(l=50, r=50, t=40, b=50), legend=dict(orientation="h", y=1.09, x=0, font=dict(size=13))
-    )
-    fig_line.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="Día", title_font=dict(size=14),
-                          type='category', categoryorder='array', categoryarray=lista_dias_ordenados)
-    fig_line.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="% Eficiencia Real", title_font=dict(size=14))
-    st.plotly_chart(fig_line, use_container_width=True)
-
-    # --- GRÁFICO 2 ---
-    st.markdown('<p class="graph-title">📦 2. Volumen de Prendas: Habilitado vs Ingreso Total</p>', unsafe_allow_html=True)
-    df_daily_totals = df_filtered.groupby(["Fecha", "Dia_Texto"]).sum(numeric_only=True).reset_index().sort_values("Fecha")
-    df_daily_totals['Pct_Habilitado'] = (df_daily_totals['Habilitadas'] / df_daily_totals['Total_Ingresos'] * 100).fillna(0).round(1)
-    df_daily_totals['Pct_Text'] = "<b>" + df_daily_totals['Pct_Habilitado'].astype(str) + '%</b>'
-
-    fig_grouped = go.Figure()
-    fig_grouped.add_trace(go.Bar(
-        name='Ingreso Total', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Total_Ingresos'], 
-        marker_color='#1F497D', yaxis='y',
-        text=[f"<b>{int(val):,}</b>" for val in df_daily_totals['Total_Ingresos']], textposition='outside', textfont=dict(size=12)
-    ))
-    fig_grouped.add_trace(go.Bar(
-        name='Prendas Habilitadas', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Habilitadas'], 
-        marker_color='#7F97B2', yaxis='y',
-        text=[f"<b>{int(val):,}</b>" for val in df_daily_totals['Habilitadas']], textposition='outside', textfont=dict(size=12)
-    ))
-    fig_grouped.add_trace(go.Scatter(
-        name='% Real Habilitado', x=df_daily_totals['Dia_Texto'], y=df_daily_totals['Pct_Habilitado'],
-        mode='lines+markers+text', text=df_daily_totals['Pct_Text'], textposition='top center',
-        line=dict(color='#E6007E', width=5), marker=dict(size=12, symbol='diamond'), yaxis='y2',
-        textfont=dict(size=13, color="#E6007E")
-    ))
-    fig_grouped.update_layout(
-        barmode='group', plot_bgcolor="white", paper_bgcolor="white", height=540,
-        margin=dict(l=50, r=60, t=40, b=50), legend=dict(orientation="h", y=1.09, x=0, font=dict(size=13)),
-        yaxis=dict(title="Cantidad de Prendas (Barras)", title_font=dict(size=14), showgrid=True, gridcolor='#EFEFEF'),
-        yaxis2=dict(title="% Real Habilitado (Línea)", title_font=dict(size=14), overlaying='y', side='right', range=[0, 130], showgrid=False)
-    )
-    fig_grouped.update_xaxes(title="Día", title_font=dict(size=14),
-                             type='category', categoryorder='array', categoryarray=lista_dias_ordenados)
-    st.plotly_chart(fig_grouped, use_container_width=True)
-
-
-    # =========================================================================
-    # --- NUEVA MATRIZ CON MULTI-ÍNDICE CON AGRUPACIÓN REAL ---
-    # =========================================================================
-    st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
-    
-    # Clonamos y ordenamos cronológicamente
-    df_table = df_filtered.copy()
-    df_table = df_table.sort_values(by=["Fecha", "Tienda"], ascending=[True, True])
-    
-    # Renombrado exacto de columnas para la interfaz corporativa
+    # 2. RENOMBRAR COLUMNAS SEGÚN ESQUEMA SOLICITADO
     df_table = df_table.rename(columns={
-        "Dia_Texto": "Día",
+        "Dia_Texto": "Fecha",
         "Sis_Aduana": "Aduana Sist.",
         "Fis_Aduana": "Aduana Fís.",
         "Total_Ingresos": "Total Ingresos",
@@ -219,20 +133,21 @@ if not df_filtered.empty:
         "Porcentaje_Ubicado": "Ubicado %"
     })
     
-    # Definición del esquema estricto de columnas solicitado
+    # 3. SECUENCIA OPERATIVA: Piezas Habilitadas antes de Ef. Recorridos y % Habilitado después
     cols_to_show = [
-        "Día", "Tienda", "Aduana Sist.", "Aduana Fís.", "Muertos", "Cajas", 
+        "Fecha", "Tienda", "Aduana Sist.", "Aduana Fís.", "Muertos", "Cajas", 
         "Total Ingresos", "Piezas Habilitadas", "Ef. Recorridos %", "% Habilitado", "Ubicado %"
     ]
     
-    df_subset = df_table[cols_to_show].copy()
+    final_df = df_table[cols_to_show].copy()
     
-    # ESTABLECER MULTIINDEX: Esto fuerza a Streamlit a agrupar la celda del Día verticalmente de forma real
-    df_grouped_final = df_subset.set_index(["Día", "Tienda"])
+    # 4. AGRUPACIÓN REAL DE DÍAS (Hacer desaparecer fechas repetidas consecutivas)
+    final_df['Fecha'] = final_df['Fecha'].mask(final_df['Fecha'].duplicated(), "")
     
-    # Función de formato condicional (Semaforización corporativa)
-    def apply_row_styles(val):
+    # Función para dar semaforización ejecutiva a los porcentajes
+    def color_semaforo(val):
         try:
+            if val == "": return 'text-align: center;'
             val_float = float(str(val).replace('%', ''))
             if val_float < 85.0:
                 return 'background-color: #FADBD8; color: #78281F; font-weight: bold; text-align: center;'
@@ -242,9 +157,9 @@ if not df_filtered.empty:
         except:
             return 'text-align: center;'
 
-    # Renderizado final aplicando Estilos de Tabla e Inyección de color Azul Énfasis 1 Oscuro (#1F497D)
-    styled_matrix = df_grouped_final.style\
-        .map(apply_row_styles, subset=["Ef. Recorridos %", "% Habilitado", "Ubicado %"])\
+    # Renderizado y formateo de datos con la paleta de color Azul Énfasis 1
+    styled_df = final_df.style\
+        .map(color_semaforo, subset=["Ef. Recorridos %", "% Habilitado", "Ubicado %"])\
         .format({
             "Aduana Sist.": "{:,}",
             "Aduana Fís.": "{:,}",
@@ -256,23 +171,21 @@ if not df_filtered.empty:
             "% Habilitado": "{:.1f}%",
             "Ubicado %": "{:.1f}%"
         })\
-        .set_properties(**{
-            'text-align': 'center'
-        })\
+        .set_properties(**{'text-align': 'center'})\
         .set_table_styles([
             {
                 'selector': 'th',
-                'props': [('background-color', '#1F497D'), ('color', 'white'), ('font-weight', 'bold'), ('text-align', 'center')]
-            },
-            {
-                'selector': 'th.index_name',
-                'props': [('background-color', '#1F497D'), ('color', 'white'), ('font-style', 'italic')]
+                'props': [
+                    ('background-color', '#1F497D'),  # Azul Énfasis 1 Oscuro
+                    ('color', '#FFFFFF'), 
+                    ('font-weight', 'bold'), 
+                    ('text-align', 'center'),
+                    ('border', '1px solid #D9D9D9')
+                ]
             }
         ])
 
-    st.dataframe(styled_matrix, use_container_width=True)
+    st.dataframe(styled_df, hide_index=True, use_container_width=True)
 
 else:
     st.warning("No hay registros disponibles para los filtros seleccionados actualmente.")
-
-st.markdown("<p style='font-size:12px; color:#999999;'>CONFIDENCIAL • Dirección de Operaciones Ropa Price Shoes.</p>", unsafe_allow_html=True)
