@@ -15,9 +15,9 @@ st.markdown("""
     .graph-title { color: #1F497D !important; font-weight: bold; font-size: 18px; margin-top: 35px; margin-bottom: 15px; border-left: 5px solid #1F497D; padding-left: 10px; }
     div[data-testid="stMetricValue"] { font-size: 26px !important; font-weight: bold; color: #1F497D !important; }
     
-    /* Estilos para la Matriz de Auditoría (Azul Énfasis 1 25% Oscuro) */
+    /* Inyección de estilo para asegurar que el encabezado del dataframe respete el Azul Énfasis 1 Oscuro */
     .stDataFrame th {
-        background-color: #15335B !important;
+        background-color: #1F497D !important;
         color: #FFFFFF !important;
         font-weight: bold !important;
         text-align: center !important;
@@ -74,20 +74,20 @@ def get_operational_data():
     df = pd.DataFrame(data)
     df['Fecha'] = pd.to_datetime(df['Fecha'])
 
-    # Total Ingresos = Aduana Sistema + Muertos + Cajas
+    # Métricas Base
     df['Total_Ingresos'] = df['Sis_Aduana'] + df['Muertos'] + df['Cajas']
     df['Eficiencia_Recorridos'] = (df['Real_Rec'] / df['Meta_Rec']) * 100
     
-    # Porcentaje Habilitado = (Piezas Habilitadas / Total Ingresos) * 100
+    # % Habilitado = (Piezas Habilitadas / Total Ingresos) * 100
     df['Porcentaje_Habilitado'] = ((df['Habilitadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     
-    # Se mantiene la base para porcentaje ubicado original si es requerido por otros gráficos
-    df['Porcentaje_Ubicado_Orig'] = ((df['Ubicadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100).clip(upper=100.0)
+    # % Ubicado (Efectividad en Piso original)
+    df['Porcentaje_Ubicado'] = ((df['Ubicadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100).clip(upper=100.0)
     
-    # Mapeo de nombres de días en español
+    # Texto de días en español
     dias_espanol = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
     df['Dia_Semana_Num'] = df['Fecha'].dt.dayofweek
-    df['Dia_Texto'] = df['Dia_Semana_Num'].map(dias_espanol) + df['Fecha'].dt.strftime(' %d')
+    df['Dia_Texto'] = df['Dia_Semana_Num'].map(dias_espanol) + df['Fecha'].dt.strftime(' (%Y-%m-%d)')
     
     return df.sort_values("Fecha")
 
@@ -197,55 +197,54 @@ if not df_filtered.empty:
                              type='category', categoryorder='array', categoryarray=lista_dias_ordenados)
     st.plotly_chart(fig_grouped, use_container_width=True)
 
-    # --- MATRIZ DE AUDITORÍA OPERATIVA OPTIMIZADA Y REORDENADA ---
+
+    # =========================================================================
+    # --- NUEVA MATRIZ CON MULTI-ÍNDICE CON AGRUPACIÓN REAL ---
+    # =========================================================================
     st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
     
+    # Clonamos y ordenamos cronológicamente
     df_table = df_filtered.copy()
     df_table = df_table.sort_values(by=["Fecha", "Tienda"], ascending=[True, True])
     
-    # Agrupación visual por día de la semana para evitar repeticiones sucesivas
-    df_table['Día'] = df_table['Fecha'].dt.dayofweek.map({0:"Lunes", 1:"Martes", 2:"Miércoles", 3:"Jueves", 4:"Viernes", 5:"Sábado", 6:"Domingo"})
-    df_table['Día'] = df_table['Día'] + " (" + df_table['Fecha'].dt.strftime('%Y-%m-%d') + ")"
-    
-    # Renombrado de las columnas de métricas fijas
+    # Renombrado exacto de columnas para la interfaz corporativa
     df_table = df_table.rename(columns={
+        "Dia_Texto": "Día",
         "Sis_Aduana": "Aduana Sist.",
         "Fis_Aduana": "Aduana Fís.",
         "Total_Ingresos": "Total Ingresos",
         "Habilitadas": "Piezas Habilitadas",
         "Eficiencia_Recorridos": "Ef. Recorridos %",
-        "Porcentaje_Habilitado": "% Habilitado"
+        "Porcentaje_Habilitado": "% Habilitado",
+        "Porcentaje_Ubicado": "Ubicado %"
     })
     
-    # El Porcentaje de Ubicado solicitado es matemáticamente igual a la tasa (Habilitado / Total Ingresos)
-    # Por lo tanto, reusamos el cálculo directo con la etiqueta "Ubicado %" colocada al final
-    df_table['Ubicado %'] = df_table['% Habilitado']
-    
-    # Secuencia Estricta: Piezas Habilitadas -> Ef. Recorridos % -> % Habilitado -> Ubicado %
+    # Definición del esquema estricto de columnas solicitado
     cols_to_show = [
         "Día", "Tienda", "Aduana Sist.", "Aduana Fís.", "Muertos", "Cajas", 
         "Total Ingresos", "Piezas Habilitadas", "Ef. Recorridos %", "% Habilitado", "Ubicado %"
     ]
     
-    final_df = df_table[cols_to_show].copy()
+    df_subset = df_table[cols_to_show].copy()
     
-    # Máscara para ocultar celdas de fechas duplicadas consecutivas y dejar la primera visible
-    final_df['Día'] = final_df['Día'].mask(final_df['Día'].duplicated(), "")
+    # ESTABLECER MULTIINDEX: Esto fuerza a Streamlit a agrupar la celda del Día verticalmente de forma real
+    df_grouped_final = df_subset.set_index(["Día", "Tienda"])
     
-    def color_semaforo(val):
+    # Función de formato condicional (Semaforización corporativa)
+    def apply_row_styles(val):
         try:
-            if val == "": return ''
             val_float = float(str(val).replace('%', ''))
             if val_float < 85.0:
-                return 'background-color: #FADBD8; color: #78281F; font-weight: bold;'
+                return 'background-color: #FADBD8; color: #78281F; font-weight: bold; text-align: center;'
             elif val_float >= 100.0:
-                return 'background-color: #D4E6F1; color: #1B4F72; font-weight: bold;'
-            return ''
+                return 'background-color: #D4E6F1; color: #1B4F72; font-weight: bold; text-align: center;'
+            return 'text-align: center;'
         except:
-            return ''
+            return 'text-align: center;'
 
-    styled_df = final_df.style\
-        .map(color_semaforo, subset=["Ef. Recorridos %", "% Habilitado", "Ubicado %"])\
+    # Renderizado final aplicando Estilos de Tabla e Inyección de color Azul Énfasis 1 Oscuro (#1F497D)
+    styled_matrix = df_grouped_final.style\
+        .map(apply_row_styles, subset=["Ef. Recorridos %", "% Habilitado", "Ubicado %"])\
         .format({
             "Aduana Sist.": "{:,}",
             "Aduana Fís.": "{:,}",
@@ -256,9 +255,22 @@ if not df_filtered.empty:
             "Ef. Recorridos %": "{:.1f}%",
             "% Habilitado": "{:.1f}%",
             "Ubicado %": "{:.1f}%"
-        })
+        })\
+        .set_properties(**{
+            'text-align': 'center'
+        })\
+        .set_table_styles([
+            {
+                'selector': 'th',
+                'props': [('background-color', '#1F497D'), ('color', 'white'), ('font-weight', 'bold'), ('text-align', 'center')]
+            },
+            {
+                'selector': 'th.index_name',
+                'props': [('background-color', '#1F497D'), ('color', 'white'), ('font-style', 'italic')]
+            }
+        ])
 
-    st.dataframe(styled_df, hide_index=True, use_container_width=True)
+    st.dataframe(styled_matrix, use_container_width=True)
 
 else:
     st.warning("No hay registros disponibles para los filtros seleccionados actualmente.")
