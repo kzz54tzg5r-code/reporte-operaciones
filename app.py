@@ -76,17 +76,18 @@ def get_operational_data():
 
     # Total Ingresos = Aduana Sistema + Muertos + Cajas
     df['Total_Ingresos'] = df['Sis_Aduana'] + df['Muertos'] + df['Cajas']
-    
     df['Eficiencia_Recorridos'] = (df['Real_Rec'] / df['Meta_Rec']) * 100
-    df['Utilizacion_Habilitado'] = ((df['Habilitadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     
-    df['Porcentaje_Ubicado'] = ((df['Ubicadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
+    # Porcentaje Ubicado = (Piezas Habilitadas / Total Ingresos) * 100
+    df['Porcentaje_Ubicado'] = ((df['Habilitadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     df['Porcentaje_Ubicado'] = df['Porcentaje_Ubicado'].clip(upper=100.0)
     
-    # Garantizar ordenamiento cronológico estricto
-    df = df.sort_values("Fecha")
-    df['Dia_Texto'] = df['Fecha'].dt.strftime('%a %d')
-    return df
+    # Mapeo de días en español para visualizaciones fijas
+    dias_espanol = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
+    df['Dia_Semana_Num'] = df['Fecha'].dt.dayofweek
+    df['Dia_Texto'] = df['Dia_Semana_Num'].map(dias_espanol) + df['Fecha'].dt.strftime(' %d')
+    
+    return df.sort_values("Fecha")
 
 df = get_operational_data()
 
@@ -112,7 +113,6 @@ if len(fecha_rango) == 2:
     start_date, end_date = fecha_rango
     df_filtered = df_filtered[(df_filtered['Fecha'].dt.date >= start_date) & (df_filtered['Fecha'].dt.date <= end_date)]
 
-# Preservar la lista secuencial de días filtrados para forzar el ordenamiento en el eje X
 lista_dias_ordenados = df_filtered.sort_values("Fecha")['Dia_Texto'].unique()
 
 # --- TARJETAS KPI DE INICIO ---
@@ -123,7 +123,7 @@ if not df_filtered.empty:
     with kpi_col2:
         st.markdown("<div style='padding:12px; border-radius:4px; background-color:#F0F4F8; border-left: 6px solid #1F497D;'><strong>Eficiencia Recorridos Prom.</strong><br><span style='font-size:24px; font-weight:bold; color:#1F497D;'>{:.1f}%</span></div>".format(df_filtered['Eficiencia_Recorridos'].mean()), unsafe_allow_html=True)
     with kpi_col3:
-        st.markdown("<div style='padding:12px; border-radius:4px; background-color:#D9D9D9; border-left: 6px solid #1F497D;'><strong>Prendas Ubicadas (Piso)</strong><br><span style='font-size:24px; font-weight:bold; color:#1F497D;'>{:,}</span></div>".format(df_filtered['Ubicadas'].sum()), unsafe_allow_html=True)
+        st.markdown("<div style='padding:12px; border-radius:4px; background-color:#D9D9D9; border-left: 6px solid #1F497D;'><strong>Prendas Habilitadas Total</strong><br><span style='font-size:24px; font-weight:bold; color:#1F497D;'>{:,}</span></div>".format(df_filtered['Habilitadas'].sum()), unsafe_allow_html=True)
     with kpi_col4:
         diff_aduana = df_filtered['Fis_Aduana'].sum() - df_filtered['Sis_Aduana'].sum()
         status_color = "#27AE60" if diff_aduana >= 0 else "#C0392B"
@@ -162,7 +162,6 @@ if not df_filtered.empty:
     fig_line.update_yaxes(showgrid=True, gridcolor='#EFEFEF', title="% Eficiencia Real", title_font=dict(size=14))
     st.plotly_chart(fig_line, use_container_width=True)
 
-
     # --- GRÁFICO 2 ---
     st.markdown('<p class="graph-title">📦 2. Volumen de Prendas: Habilitado vs Ingreso Total</p>', unsafe_allow_html=True)
     df_daily_totals = df_filtered.groupby(["Fecha", "Dia_Texto"]).sum(numeric_only=True).reset_index().sort_values("Fecha")
@@ -196,101 +195,61 @@ if not df_filtered.empty:
                              type='category', categoryorder='array', categoryarray=lista_dias_ordenados)
     st.plotly_chart(fig_grouped, use_container_width=True)
 
-
-    # --- GRÁFICO 3 ---
-    st.markdown('<p class="graph-title">📊 3. Porcentaje de Ubicado (Efectividad Máxima en Piso)</p>', unsafe_allow_html=True)
-    df_tienda = df_filtered.groupby("Tienda").mean(numeric_only=True).reset_index()
-    fig_bar = go.Figure()
-    fig_bar.add_trace(go.Bar(
-        y=df_tienda['Tienda'], x=df_tienda['Porcentaje_Ubicado'],
-        orientation='h', marker_color='#5B9BD5',
-        text=[f"<b>{val:.1f}%</b>" for val in df_tienda['Porcentaje_Ubicado']], textposition='inside',
-        textfont=dict(size=13, color="white")
-    ))
-    fig_bar.update_layout(
-        plot_bgcolor="white", paper_bgcolor="white", height=430,
-        margin=dict(l=80, r=50, t=30, b=50)
-    )
-    fig_bar.update_xaxes(showgrid=True, gridcolor='#EFEFEF', title="% Efectividad Real Comercial", title_font=dict(size=14), range=[0, 105])
-    st.plotly_chart(fig_bar, use_container_width=True)
-
-
-    # --- GRÁFICO 4 ---
-    st.markdown('<p class="graph-title">🍰 4. % de Participación en Composición de Ingresos (Por Sucursal)</p>', unsafe_allow_html=True)
-    tiendas_a_graficar = list(df_filtered['Tienda'].unique())
-    
-    for t_name in tiendas_a_graficar:
-        df_t_sub = df_filtered[df_filtered['Tienda'] == t_name]
-        tot_ing_t = df_t_sub['Total_Ingresos'].sum()
-        
-        if tot_ing_t > 0:
-            p_aduana_sis = (df_t_sub['Sis_Aduana'].sum() / tot_ing_t) * 100
-            p_muertos = (df_t_sub['Muertos'].sum() / tot_ing_t) * 100
-            p_cajas = max(0, 100.0 - (p_aduana_sis + p_muertos))
-            
-            labels = ['Aduana Sistema', 'Muertos', 'Cajas']
-            values = [p_aduana_sis, p_muertos, p_cajas]
-            
-            fig_donut_t = go.Figure(data=[go.Pie(
-                labels=labels, values=values, hole=.45, 
-                marker=dict(colors=['#1F497D', '#E6007E', '#A6A6A6']),
-                textinfo='label+percent',
-                texttemplate="<b>%{label}<br>%{percent}</b>",
-                textfont=dict(size=13)
-            )])
-            
-            fig_donut_t.update_layout(
-                title=dict(text=f"Distribución Operativa de Ingresos - {t_name.upper()}", font=dict(size=17, color="#1F497D", family="Arial"), x=0.02),
-                plot_bgcolor="white", paper_bgcolor="white", height=575,
-                margin=dict(l=50, r=50, t=80, b=50), 
-                legend=dict(orientation="h", y=-0.05, x=0.0, font=dict(size=13))
-            )
-            st.plotly_chart(fig_donut_t, use_container_width=True)
-        else:
-            st.info(f"La sucursal **{t_name}** no registró volúmenes de ingreso bruto en el rango seleccionado.")
-
-
-    # --- MATRIZ DE AUDITORÍA (COLUMNAS ACTUALIZADAS Y REORDENADAS) ---
+    # --- MATRIZ DE AUDITORÍA OPERATIVA AGRUPADA ---
     st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
     
-    df_table = df_filtered.sort_values("Fecha", ascending=False).copy()
-    df_table['Fecha'] = df_table['Fecha'].dt.strftime('%Y-%m-%d')
+    # Preparación de datos y ordenamiento secuencial cronológico
+    df_table = df_filtered.copy()
+    df_table = df_table.sort_values(by=["Fecha", "Tienda"], ascending=[True, True])
     
-    # Renombrado e intercambio de piezas en piso por piezas habilitadas
+    # Formatear el día y fecha combinados (ej. "Lunes (2026-05-25)")
+    df_table['Día'] = df_table['Fecha'].dt.dayofweek.map({0:"Lunes", 1:"Martes", 2:"Miércoles", 3:"Jueves", 4:"Viernes", 5:"Sábado", 6:"Domingo"})
+    df_table['Día'] = df_table['Día'] + " (" + df_table['Fecha'].dt.strftime('%Y-%m-%d') + ")"
+    
+    # Renombrado de métricas a sus etiquetas finales
     df_table = df_table.rename(columns={
         "Sis_Aduana": "Aduana Sist.",
         "Fis_Aduana": "Aduana Fís.",
         "Total_Ingresos": "Total Ingresos",
-        "Eficiencia_Recorridos": "Ef. Recorridos %",
         "Habilitadas": "Piezas Habilitadas",
+        "Eficiencia_Recorridos": "Ef. Recorridos %",
         "Porcentaje_Ubicado": "Ubicado %"
     })
     
-    # Estructura final con "Piezas Habilitadas" antes de "Ubicado %"
+    # Orden de columnas: Piezas Habilitadas -> Ef. Recorridos % -> Ubicado %
     cols_to_show = [
-        "Fecha", "Tienda", "Aduana Sist.", "Aduana Fís.", "Muertos", "Cajas", 
-        "Total Ingresos", "Ef. Recorridos %", "Piezas Habilitadas", "Ubicado %"
+        "Día", "Tienda", "Aduana Sist.", "Aduana Fís.", "Muertos", "Cajas", 
+        "Total Ingresos", "Piezas Habilitadas", "Ef. Recorridos %", "Ubicado %"
     ]
+    
+    final_df = df_table[cols_to_show].copy()
+    
+    # Evitar repetición visual del Día utilizando máscara condicional limpia de Pandas
+    final_df['Día'] = final_df['Día'].mask(final_df['Día'].duplicated(), "")
     
     def color_semaforo(val):
         try:
-            if val < 85.0:
+            if val == "": return ''
+            val_float = float(str(val).replace('%', ''))
+            if val_float < 85.0:
                 return 'background-color: #FADBD8; color: #78281F; font-weight: bold;'
-            elif val >= 100.0:
+            elif val_float >= 100.0:
                 return 'background-color: #D4E6F1; color: #1B4F72; font-weight: bold;'
             return ''
         except:
             return ''
 
-    styled_df = df_table[cols_to_show].style\
+    styled_df = final_df.style\
         .map(color_semaforo, subset=["Ef. Recorridos %", "Ubicado %"])\
         .format({
-            "Ef. Recorridos %": "{:.1f}%",
-            "Ubicado %": "{:.1f}%",
             "Aduana Sist.": "{:,}",
             "Aduana Fís.": "{:,}",
+            "Muertos": "{:,}",
+            "Cajas": "{:,}",
             "Total Ingresos": "{:,}",
-            "Piezas Habilitadas": "{:,}"
+            "Piezas Habilitadas": "{:,}",
+            "Ef. Recorridos %": "{:.1f}%",
+            "Ubicado %": "{:.1f}%"
         })
 
     st.dataframe(styled_df, hide_index=True, use_container_width=True)
