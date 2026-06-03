@@ -78,11 +78,13 @@ def get_operational_data():
     df['Total_Ingresos'] = df['Sis_Aduana'] + df['Muertos'] + df['Cajas']
     df['Eficiencia_Recorridos'] = (df['Real_Rec'] / df['Meta_Rec']) * 100
     
-    # Porcentaje Ubicado = (Piezas Habilitadas / Total Ingresos) * 100
-    df['Porcentaje_Ubicado'] = ((df['Habilitadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
-    df['Porcentaje_Ubicado'] = df['Porcentaje_Ubicado'].clip(upper=100.0)
+    # Porcentaje Habilitado = (Piezas Habilitadas / Total Ingresos) * 100
+    df['Porcentaje_Habilitado'] = ((df['Habilitadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100)
     
-    # Mapeo de días en español para visualizaciones fijas
+    # Se mantiene la base para porcentaje ubicado original si es requerido por otros gráficos
+    df['Porcentaje_Ubicado_Orig'] = ((df['Ubicadas'] / df['Total_Ingresos']).replace([float('inf'), -float('inf')], 0).fillna(0) * 100).clip(upper=100.0)
+    
+    # Mapeo de nombres de días en español
     dias_espanol = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
     df['Dia_Semana_Num'] = df['Fecha'].dt.dayofweek
     df['Dia_Texto'] = df['Dia_Semana_Num'].map(dias_espanol) + df['Fecha'].dt.strftime(' %d')
@@ -195,36 +197,39 @@ if not df_filtered.empty:
                              type='category', categoryorder='array', categoryarray=lista_dias_ordenados)
     st.plotly_chart(fig_grouped, use_container_width=True)
 
-    # --- MATRIZ DE AUDITORÍA OPERATIVA AGRUPADA ---
+    # --- MATRIZ DE AUDITORÍA OPERATIVA OPTIMIZADA Y REORDENADA ---
     st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
     
-    # Preparación de datos y ordenamiento secuencial cronológico
     df_table = df_filtered.copy()
     df_table = df_table.sort_values(by=["Fecha", "Tienda"], ascending=[True, True])
     
-    # Formatear el día y fecha combinados (ej. "Lunes (2026-05-25)")
+    # Agrupación visual por día de la semana para evitar repeticiones sucesivas
     df_table['Día'] = df_table['Fecha'].dt.dayofweek.map({0:"Lunes", 1:"Martes", 2:"Miércoles", 3:"Jueves", 4:"Viernes", 5:"Sábado", 6:"Domingo"})
     df_table['Día'] = df_table['Día'] + " (" + df_table['Fecha'].dt.strftime('%Y-%m-%d') + ")"
     
-    # Renombrado de métricas a sus etiquetas finales
+    # Renombrado de las columnas de métricas fijas
     df_table = df_table.rename(columns={
         "Sis_Aduana": "Aduana Sist.",
         "Fis_Aduana": "Aduana Fís.",
         "Total_Ingresos": "Total Ingresos",
         "Habilitadas": "Piezas Habilitadas",
         "Eficiencia_Recorridos": "Ef. Recorridos %",
-        "Porcentaje_Ubicado": "Ubicado %"
+        "Porcentaje_Habilitado": "% Habilitado"
     })
     
-    # Orden de columnas: Piezas Habilitadas -> Ef. Recorridos % -> Ubicado %
+    # El Porcentaje de Ubicado solicitado es matemáticamente igual a la tasa (Habilitado / Total Ingresos)
+    # Por lo tanto, reusamos el cálculo directo con la etiqueta "Ubicado %" colocada al final
+    df_table['Ubicado %'] = df_table['% Habilitado']
+    
+    # Secuencia Estricta: Piezas Habilitadas -> Ef. Recorridos % -> % Habilitado -> Ubicado %
     cols_to_show = [
         "Día", "Tienda", "Aduana Sist.", "Aduana Fís.", "Muertos", "Cajas", 
-        "Total Ingresos", "Piezas Habilitadas", "Ef. Recorridos %", "Ubicado %"
+        "Total Ingresos", "Piezas Habilitadas", "Ef. Recorridos %", "% Habilitado", "Ubicado %"
     ]
     
     final_df = df_table[cols_to_show].copy()
     
-    # Evitar repetición visual del Día utilizando máscara condicional limpia de Pandas
+    # Máscara para ocultar celdas de fechas duplicadas consecutivas y dejar la primera visible
     final_df['Día'] = final_df['Día'].mask(final_df['Día'].duplicated(), "")
     
     def color_semaforo(val):
@@ -240,7 +245,7 @@ if not df_filtered.empty:
             return ''
 
     styled_df = final_df.style\
-        .map(color_semaforo, subset=["Ef. Recorridos %", "Ubicado %"])\
+        .map(color_semaforo, subset=["Ef. Recorridos %", "% Habilitado", "Ubicado %"])\
         .format({
             "Aduana Sist.": "{:,}",
             "Aduana Fís.": "{:,}",
@@ -249,6 +254,7 @@ if not df_filtered.empty:
             "Total Ingresos": "{:,}",
             "Piezas Habilitadas": "{:,}",
             "Ef. Recorridos %": "{:.1f}%",
+            "% Habilitado": "{:.1f}%",
             "Ubicado %": "{:.1f}%"
         })
 
