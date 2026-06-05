@@ -4,15 +4,27 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 # --- CONFIGURACIÓN DE INTERFAZ GENERAL ---
-st.set_page_config(page_title="Price Shoes - Business Intelligence", layout="wide", page_icon="👚")
+st.set_page_config(page_title="Price Shoes - Operaciones Ropa", layout="wide", page_icon="👚")
 
-# Estilos corporativos globales
+# Estilos corporativos globales (Azul Énfasis 1 Oscuro y Gris)
 st.markdown("""
     <style>
     .reportview-container { background-color: #FFFFFF; }
     .main-title { color: #000000 !important; font-family: 'Arial', sans-serif; font-size: 34px !important; font-weight: 800; margin-bottom: 0px; }
     .sub-title { color: #E6007E !important; font-family: 'Arial', sans-serif; font-size: 15px !important; font-weight: bold; margin-top: -5px; letter-spacing: 0.5px; text-transform: uppercase; }
     .graph-title { color: #1F497D !important; font-weight: bold; font-size: 18px; margin-top: 35px; margin-bottom: 15px; border-left: 5px solid #1F497D; padding-left: 10px; }
+    
+    /* Estilos para Tarjetas de KPI */
+    .kpi-card {
+        background-color: #F8F9FA;
+        border: 1px solid #D9D9D9;
+        border-radius: 5px;
+        padding: 15px;
+        text-align: center;
+        box-shadow: 0px 2px 4px rgba(0,0,0,0.05);
+    }
+    .kpi-label { color: #555555; font-size: 13px; font-weight: bold; text-transform: uppercase; }
+    .kpi-value { color: #1F497D; font-size: 26px; font-weight: bold; margin-top: 5px; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -65,13 +77,13 @@ def get_operational_data():
     df = pd.DataFrame(data)
     df['Fecha'] = pd.to_datetime(df['Fecha'])
 
-    # Cálculos Financiero-Operativos básicos
+    # Cálculos Operativos
     df['Total_Ingresos'] = df['Sis_Aduana'] + df['Muertos'] + df['Cajas']
     df['Eficiencia_Recorridos'] = (df['Real_Rec'] / df['Meta_Rec']) * 100
     df['Porcentaje_Habilitado'] = (df['Habilitadas'] / df['Total_Ingresos']).fillna(0) * 100
     df['Porcentaje_Ubicado'] = (df['Ubicadas'] / df['Total_Ingresos']).fillna(0) * 100
     
-    # Conversión estricta a texto en español
+    # Mapeo de días en español
     dias_espanol = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
     df['Dia_Semana_Num'] = df['Fecha'].dt.dayofweek
     df['Dia_Nombre'] = df['Dia_Semana_Num'].map(dias_espanol)
@@ -80,9 +92,9 @@ def get_operational_data():
 
 df = get_operational_data()
 
-# --- HEADER GENERAL ---
-st.markdown('<p class="main-title">👚 PRICE SHOES • Business Intelligence</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">MÓDULO: OPERACIONES ROPA – CONTROL DE ACONDICIONAMIENTO Y PISO (SEM 21)</p>', unsafe_allow_html=True)
+# --- HEADER GENERAL DE LA APLICACIÓN ---
+st.markdown('<p class="main-title">👚 PRICE SHOES • Operaciones Ropa</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">CONTROL DE ACONDICIONAMIENTO, SEGUIMIENTO DE RECORRIDOS Y MATRIZ DE PISO (SEM 21)</p>', unsafe_allow_html=True)
 st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
 
 # --- FILTROS DE SIDEBAR ---
@@ -94,15 +106,74 @@ if tienda != "Todas las Tiendas":
     df_filtered = df_filtered[df_filtered['Tienda'] == tienda]
 
 # =========================================================================
-# --- RESOLUCIÓN GRÁFICA DEFINITIVA DE LA MATRIZ REORGANIZADA ---
+# --- SECCIÓN 1: TARJETAS DE INDICADORES (KPIs RESUMEN) ---
+# =========================================================================
+if not df_filtered.empty:
+    total_ing = df_filtered['Total_Ingresos'].sum()
+    total_hab = df_filtered['Habilitadas'].sum()
+    avg_ef = df_filtered['Eficiencia_Recorridos'].mean()
+    avg_ub = df_filtered['Porcentaje_Ubicado'].mean()
+
+    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+    with kpi1:
+        st.markdown(f'<div class="kpi-card"><p class="kpi-label">📥 Total Ingresos</p><p class="kpi-value">{total_ing:,}</p></div>', unsafe_allow_html=True)
+    with kpi2:
+        st.markdown(f'<div class="kpi-card"><p class="kpi-label">✨ Piezas Habilitadas</p><p class="kpi-value">{total_hab:,}</p></div>', unsafe_allow_html=True)
+    with kpi3:
+        st.markdown(f'<div class="kpi-card"><p class="kpi-label">🎯 Eficiencia Recorridos</p><p class="kpi-value">{avg_ef:.1f}%</p></div>', unsafe_allow_html=True)
+    with kpi4:
+        st.markdown(f'<div class="kpi-card"><p class="kpi-label">📍 % Ubicado Total</p><p class="kpi-value">{avg_ub:.1f}%</p></div>', unsafe_allow_html=True)
+
+# =========================================================================
+# --- SECCIÓN 2: BLOQUE DE GRÁFICOS SOLICITADOS POR DÍA Y TIENDA ---
+# =========================================================================
+st.markdown('<p class="graph-title">📊 Gráficos de Rendimiento y Distribución Operativa</p>', unsafe_allow_html=True)
+
+if not df_filtered.empty:
+    col_g1, col_g2 = st.columns(2)
+    
+    with col_g1:
+        # Gráfico 1: Piezas Habilitadas por Tienda
+        df_g1 = df_filtered.groupby("Tienda")["Habilitadas"].sum().reset_index()
+        fig1 = px.bar(df_g1, x="Tienda", y="Habilitadas", title="Piezas Habilitadas por Sucursal",
+                     color_discrete_sequence=['#1F497D'])
+        fig1.update_layout(plot_bgcolor='white')
+        st.plotly_chart(fig1, use_container_width=True)
+        
+        # Gráfico 2: Evolución de Eficiencia de Recorridos por Día
+        df_g2 = df_filtered.groupby(["Dia_Semana_Num", "Dia_Nombre"])["Eficiencia_Recorridos"].mean().reset_index()
+        df_g2 = df_g2.sort_values("Dia_Semana_Num")
+        fig2 = px.line(df_g2, x="Dia_Nombre", y="Eficiencia_Recorridos", title="Evolución % Eficiencia de Recorridos",
+                      color_discrete_sequence=['#E6007E'], markers=True)
+        fig2.update_layout(plot_bgcolor='white')
+        st.plotly_chart(fig2, use_container_width=True)
+
+    with col_g2:
+        # Gráfico 3: Composición de Ingresos por Tienda
+        df_g3 = df_filtered.groupby("Tienda")[["Sis_Aduana", "Muertos", "Cajas"]].sum().reset_index()
+        fig3 = px.bar(df_g3, x="Tienda", y=["Sis_Aduana", "Muertos", "Cajas"], title="Composición de Ingresos por Tienda",
+                     color_discrete_sequence=['#1F497D', '#E6007E', '#7F7F7F'])
+        fig3.update_layout(barmode='stack', plot_bgcolor='white')
+        st.plotly_chart(fig3, use_container_width=True)
+        
+        # Gráfico 4: Comparativo % Habilitado vs Ubicado por Día
+        df_g4 = df_filtered.groupby(["Dia_Semana_Num", "Dia_Nombre"])[["Porcentaje_Habilitado", "Porcentaje_Ubicado"]].mean().reset_index()
+        df_g4 = df_g4.sort_values("Dia_Semana_Num")
+        fig4 = px.bar(df_g4, x="Dia_Nombre", y=["Porcentaje_Habilitado", "Porcentaje_Ubicado"], title="% Habilitado vs Ubicado por Día",
+                     barmode='group', color_discrete_sequence=['#1F497D', '#555555'])
+        fig4.update_layout(plot_bgcolor='white')
+        st.plotly_chart(fig4, use_container_width=True)
+
+# =========================================================================
+# --- SECCIÓN 3: MATRIZ GENERAL DE AUDITORÍA OPERATIVA ---
 # =========================================================================
 st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
 
 if not df_filtered.empty:
-    # Ordenamiento cronológico explícito (De Lunes a Domingo)
+    # Ordenamiento cronológico de Lunes a Domingo
     df_table = df_filtered.sort_values(by=["Dia_Semana_Num", "Tienda"], ascending=[True, True]).copy()
     
-    # Construcción estructurada de la tabla HTML para asegurar agrupación y orden exacto de columnas
+    # Construcción de la tabla HTML limpia
     html_table = """
     <table style="width:100%; border-collapse: collapse; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13.5px; border: 1px solid #D9D9D9;">
         <thead>
@@ -123,7 +194,6 @@ if not df_filtered.empty:
         <tbody>
     """
     
-    # Agrupamos por día de la semana para generar la fusión de celdas vertical (rowspan)
     grouped_by_day = df_table.groupby("Dia_Nombre", sort=False)
     
     for dia, group in grouped_by_day:
@@ -133,12 +203,10 @@ if not df_filtered.empty:
         for idx, row in group.iterrows():
             html_table += '<tr style="border-bottom: 1px solid #EFEFEF;">'
             
-            # Si es la primera sucursal del día, creamos la celda agrupada
             if first_row:
                 html_table += f'<td rowspan="{row_count}" style="padding: 10px; border: 1px solid #D9D9D9; font-weight: bold; text-align: center; background-color: #F9FBFD; color: #1F497D; vertical-align: middle;">{dia}</td>'
                 first_row = False
                 
-            # Columnas operativas base
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: 500;">{row["Tienda"]}</td>'
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Sis_Aduana"]):,}</td>'
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Fis_Aduana"]):,}</td>'
@@ -146,22 +214,22 @@ if not df_filtered.empty:
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Cajas"]):,}</td>'
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right; font-weight: bold; background-color: #F9F9F9;">{int(row["Total_Ingresos"]):,}</td>'
             
-            # NUEVO ORDEN SOLICITADO: Piezas habilitadas ANTES de Eficiencia Recorridos
+            # Orden de columnas exacto y cálculos dinámicos
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Habilitadas"]):,}</td>'
             
-            # Semaforización para Ef. Recorridos %
+            # Ef. Recorridos con semáforo
             ef_rec = row["Eficiencia_Recorridos"]
             bg_ef = "#FADBD8" if ef_rec < 85.0 else ("#D4E6F1" if ef_rec >= 100.0 else "#FFFFFF")
             color_ef = "#78281F" if ef_rec < 85.0 else ("#1B4F72" if ef_rec >= 100.0 else "#000000")
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: bold; background-color: {bg_ef}; color: {color_ef};">{ef_rec:.1f}%</td>'
             
-            # NUEVO INTEGRADO: % Habilitado DESPUÉS de Eficiencia Recorridos
+            # % Habilitado con semáforo
             pct_hab = row["Porcentaje_Habilitado"]
             bg_hab = "#FADBD8" if pct_hab < 85.0 else ("#D4E6F1" if pct_hab >= 100.0 else "#FFFFFF")
             color_hab = "#78281F" if pct_hab < 85.0 else ("#1B4F72" if pct_hab >= 100.0 else "#000000")
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: bold; background-color: {bg_hab}; color: {color_hab};">{pct_hab:.1f}%</td>'
             
-            # Columna final: Ubicado %
+            # Ubicado % con semáforo
             pct_ub = row["Porcentaje_Ubicado"]
             bg_ub = "#FADBD8" if pct_ub < 85.0 else ("#D4E6F1" if pct_ub >= 100.0 else "#FFFFFF")
             color_ub = "#78281F" if pct_ub < 85.0 else ("#1B4F72" if pct_ub >= 100.0 else "#000000")
@@ -170,8 +238,6 @@ if not df_filtered.empty:
             html_table += '</tr>'
             
     html_table += "</tbody></table>"
-    
-    # Inyectamos el HTML de forma limpia y directa en la app
     st.markdown(html_table, unsafe_allow_html=True)
 else:
     st.warning("No hay registros disponibles para los filtros seleccionados actualmente.")
