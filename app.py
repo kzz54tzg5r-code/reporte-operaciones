@@ -89,7 +89,7 @@ def get_operational_data():
         
         {"Mes": "Mayo", "Semana": "Semana 21", "Fecha": "2026-05-31", "Tienda": "Vallejo", "Sis_Aduana": 351, "Fis_Aduana": 351, "Muertos": 326, "Cajas": 488, "Meta_Rec": 8, "Real_Rec": 16, "Recolectadas": 884, "Habilitadas": 705, "Ubicadas": 2605},
         {"Mes": "Mayo", "Semana": "Semana 21", "Fecha": "2026-05-31", "Tienda": "Arco Norte", "Sis_Aduana": 264, "Fis_Aduana": 107, "Muertos": 57, "Cajas": 78, "Meta_Rec": 8, "Real_Rec": 3, "Recolectadas": 135, "Habilitadas": 784, "Ubicadas": 482},
-        {"Mes": "Mayo", "Semana": "Semana 21", "Fecha": "2026-05-31", "Tienda": "Puebla Sur", "Sis_Aduana": 104, "Fis_Aduattributes": 110, "Muertos": 198, "Cajas": 0, "Meta_Rec": 8, "Real_Rec": 2, "Recolectadas": 198, "Habilitadas": 340, "Ubicadas": 440},
+        {"Mes": "Mayo", "Semana": "Semana 21", "Fecha": "2026-05-31", "Tienda": "Puebla Sur", "Sis_Aduana": 104, "Fis_Aduana": 110, "Muertos": 198, "Cajas": 0, "Meta_Rec": 8, "Real_Rec": 2, "Recolectadas": 198, "Habilitadas": 340, "Ubicadas": 440},
         {"Mes": "Mayo", "Semana": "Semana 21", "Fecha": "2026-05-31", "Tienda": "Miravalle", "Sis_Aduana": 41, "Fis_Aduana": 0, "Muertos": 0, "Cajas": 0, "Meta_Rec": 8, "Real_Rec": 0, "Recolectadas": 0, "Habilitadas": 0, "Ubicadas": 0},
 
         # === DATOS HISTÓRICOS ADICIONALES ===
@@ -206,23 +206,24 @@ if not df_filtered.empty:
     st.markdown(f'<p class="graph-title">📊 Gráficos de Rendimiento y Distribución Operativa {label_corte}</p>', unsafe_allow_html=True)
     col_g1, col_g2 = st.columns(2)
     
-    # Determinar eje de tiempo paramétrico
+    # Determinar eje de tiempo paramétrico según el filtro
     if tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses":
-        eje_x = "Semana"
+        eje_x_dinamico = "Semana"
     else:
-        eje_x = "Dia_Nombre"
+        eje_x_dinamico = "Dia_Nombre"
 
     with col_g1:
         # --- PRIMER GRÁFICO: DISTRIBUCIÓN POR ÁREA CON PORCENTAJE ---
-        df_g1 = df_filtered.groupby(eje_x)[["Sis_Aduana", "Muertos", "Cajas"]].sum().reset_index()
+        df_g1 = df_filtered.groupby(eje_x_dinamico, as_index=False)[["Sis_Aduana", "Muertos", "Cajas"]].sum()
         
-        if eje_x == "Dia_Nombre":
-            df_g1['Dia_Semana_Num'] = df_g1['Dia_Nombre'].map({"Lunes":0, "Martes":1, "Miércoles":2, "Jueves":3, "Viernes":4, "Sábado":5, "Domingo":6})
-            df_g1 = df_g1.sort_values("Dia_Semana_Num")
+        if eje_x_dinamico == "Dia_Nombre":
+            orden_dias = {"Lunes":0, "Martes":1, "Miércoles":2, "Jueves":3, "Viernes":4, "Sábado":5, "Domingo":6}
+            df_g1['orden'] = df_g1['Dia_Nombre'].map(orden_dias)
+            df_g1 = df_g1.sort_values('orden').drop(columns=['orden'])
 
         fig1 = px.bar(
             df_g1, 
-            x=eje_x, 
+            x=eje_x_dinamico, 
             y=["Sis_Aduana", "Muertos", "Cajas"], 
             title="Distribución y % de Composición de Ingresos Totales",
             color_discrete_sequence=['#1F497D', '#E6007E', '#7F7F7F'],
@@ -231,6 +232,7 @@ if not df_filtered.empty:
         fig1.update_layout(
             plot_bgcolor='white', 
             yaxis_title="Porcentaje (%)", 
+            xaxis_title=eje_x_dinamico,
             legend_title="Áreas",
             margin=dict(t=40, b=20, l=20, r=20)
         )
@@ -238,26 +240,25 @@ if not df_filtered.empty:
 
     with col_g2:
         # --- SEGUNDO GRÁFICO: MIXTO (% HABILITADO EN BARRA Y TOTAL INGRESOS EN LÍNEA) ---
-        if eje_x == "Semana":
-            df_g2 = df_filtered.groupby("Semana").agg(
+        if eje_x_dinamico == "Semana":
+            df_g2 = df_filtered.groupby("Semana", as_index=False).agg(
                 Total_Ingresos=('Total_Ingresos', 'sum'),
                 Habilitadas=('Habilitadas', 'sum')
-            ).reset_index()
+            )
         else:
-            df_g2 = df_filtered.groupby(["Dia_Semana_Num", "Dia_Nombre"]).agg(
+            df_g2 = df_filtered.groupby(["Dia_Semana_Num", "Dia_Nombre"], as_index=False).agg(
                 Total_Ingresos=('Total_Ingresos', 'sum'),
                 Habilitadas=('Habilitadas', 'sum')
-            ).reset_index().sort_values("Dia_Semana_Num")
+            ).sort_values("Dia_Semana_Num")
 
         df_g2['Porcentaje_Habilitado'] = (df_g2['Habilitadas'] / df_g2['Total_Ingresos'] * 100).fillna(0)
 
-        # Gráfico con doble eje Y
         fig2 = make_subplots(specs=[[{"secondary_y": True}]])
 
-        # Barras: Porcentaje Habilitado
+        # Barras: % Habilitado (Eje Y Izquierdo)
         fig2.add_trace(
             go.Bar(
-                x=df_g2[eje_x], 
+                x=df_g2[eje_x_dinamico], 
                 y=df_g2['Porcentaje_Habilitado'], 
                 name="% Habilitado",
                 marker_color='#1F497D',
@@ -267,10 +268,10 @@ if not df_filtered.empty:
             secondary_y=False,
         )
 
-        # Línea: Volumen de Ingresos Totales
+        # Línea: Volumen de Ingresos Totales (Eje Y Derecho)
         fig2.add_trace(
             go.Scatter(
-                x=df_g2[eje_x], 
+                x=df_g2[eje_x_dinamico], 
                 y=df_g2['Total_Ingresos'], 
                 name="Total Ingresos",
                 mode='lines+markers+text',
