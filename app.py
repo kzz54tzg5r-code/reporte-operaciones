@@ -212,8 +212,17 @@ if not df_filtered.empty:
         eje_x_dinamico = "Semana" if tipo_periodo == "Por Semana" else "Dia_Nombre"
 
     with col_g1:
-        # --- GRÁFICO 1: COMPOSICIÓN DE INGRESOS POR TIENDA / PERIODO ---
+        # --- GRÁFICO 1: COMPOSICIÓN DE INGRESOS CON PORCENTAJES INTERNOS ---
         df_g1 = df_filtered.groupby(eje_x_dinamico, as_index=False)[["Sis_Aduana", "Muertos", "Cajas"]].sum()
+        df_g1["Total_Fila"] = df_g1["Sis_Aduana"] + df_g1["Muertos"] + df_g1["Cajas"]
+
+        # Evitar división por cero
+        df_g1["Total_Fila"] = df_g1["Total_Fila"].replace(0, 1)
+
+        # Calcular los strings de porcentajes para las etiquetas de Plotly
+        pct_sis = (df_g1["Sis_Aduana"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format)
+        pct_mue = (df_g1["Muertos"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format)
+        pct_caj = (df_g1["Cajas"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format)
         
         if eje_x_dinamico == "Dia_Nombre":
             orden_dias = {"Lunes":0, "Martes":1, "Miércoles":2, "Jueves":3, "Viernes":4, "Sábado":5, "Domingo":6}
@@ -221,9 +230,24 @@ if not df_filtered.empty:
             df_g1 = df_g1.sort_values('orden').drop(columns=['orden'])
 
         fig1 = go.Figure()
-        fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Sis_Aduana"], name="Sis_Aduana", marker_color='#1F497D'))
-        fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Muertos"], name="Muertos", marker_color='#E6007E'))
-        fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Cajas"], name="Cajas", marker_color='#7F7F7F'))
+        
+        # Trazo: Sis_Aduana
+        fig1.add_trace(go.Bar(
+            x=df_g1[eje_x_dinamico], y=df_g1["Sis_Aduana"], name="Sis_Aduana", marker_color='#1F497D',
+            text=pct_sis, textposition='inside', textfont=dict(color='white', weight='bold')
+        ))
+        
+        # Trazo: Muertos
+        fig1.add_trace(go.Bar(
+            x=df_g1[eje_x_dinamico], y=df_g1["Muertos"], name="Muertos", marker_color='#E6007E',
+            text=pct_mue, textposition='inside', textfont=dict(color='white', weight='bold')
+        ))
+        
+        # Trazo: Cajas
+        fig1.add_trace(go.Bar(
+            x=df_g1[eje_x_dinamico], y=df_g1["Cajas"], name="Cajas", marker_color='#7F7F7F',
+            text=pct_caj, textposition='inside', textfont=dict(color='white', weight='bold')
+        ))
 
         fig1.update_layout(
             title=f"Distribución y % de Composición de Ingresos por {eje_x_dinamico}",
