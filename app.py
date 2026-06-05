@@ -13,7 +13,7 @@ st.markdown("""
     .sub-title { color: #E6007E !important; font-family: 'Arial', sans-serif; font-size: 15px !important; font-weight: bold; margin-top: -5px; letter-spacing: 0.5px; text-transform: uppercase; }
     .graph-title { color: #1F497D !important; font-weight: bold; font-size: 18px; margin-top: 35px; margin-bottom: 15px; border-left: 5px solid #1F497D; padding-left: 10px; }
     
-    /* Nueva estructura de tarjetas apiladas por semana */
+    /* Estructura optimizada de tarjetas semanales compactas */
     .semana-header {
         background-color: #1F497D;
         color: white !important;
@@ -31,20 +31,22 @@ st.markdown("""
         border-right: 1px solid #D9D9D9;
         border-bottom: 1px solid #D9D9D9;
         border-radius: 0 0 4px 4px;
-        padding: 12px;
+        padding: 10px 14px;
         text-align: center;
         box-shadow: 0px 2px 4px rgba(0,0,0,0.03);
         margin-bottom: 15px;
     }
     .kpi-sub-block {
         border-bottom: 1px dashed #D9D9D9;
-        padding: 6px 0;
+        padding: 8px 0;
     }
     .kpi-sub-block:last-child {
         border-bottom: none;
     }
     .kpi-label-nested { color: #555555; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
     .kpi-value-nested { color: #1F497D; font-size: 18px; font-weight: bold; margin: 0; }
+    .kpi-value-inline { color: #1F497D; font-size: 18px; font-weight: bold; margin: 0; display: inline-block; }
+    .kpi-pct-inline { color: #E6007E; font-size: 15px; font-weight: bold; margin-left: 8px; display: inline-block; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -117,14 +119,13 @@ def get_operational_data():
 
 df_master = get_operational_data()
 
-# --- TITULARES PRINCIPALES DEL DASHBOARD ---
+# --- TITULARES PRINCIPALES DEL DASHBOARD (AJUSTADO SEGÚN image_70291a.png) ---
 st.markdown('<p class="main-title">👚 PRICE SHOES • Operaciones Ropa</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">CONTROL DE ACONDICIONAMIENTO, SEGUIMIENTO DE RECORRIDOS Y MATRIZ DE PISO</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">CONTROL DE CAMBIOS Y MUERTOS</p>', unsafe_allow_html=True)
 st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
 
 # --- PANEL DE CONTROL (BARRA LATERAL) ---
 st.sidebar.markdown("### 🎛️ Filtros de Operación")
-
 tipo_periodo = st.sidebar.radio("Agrupar Reporte por:", ["Por Semana", "Por Mes"])
 
 if tipo_periodo == "Por Semana":
@@ -146,31 +147,31 @@ if tienda != "Todas las Tiendas":
 if not df_filtered.empty:
     
     # =========================================================================
-    # --- RESUMEN SUPERIOR: DESGLOSE COMPLETO DE LAS ÚLTIMAS 4 SEMANAS ---
+    # --- RESUMEN SUPERIOR: DESGLOSE DE 4 SEMANAS CON PORCENTAJES EN LÍNEA ---
     # =========================================================================
     st.markdown('<p style="color: #555555; font-weight: bold; font-size: 14px; margin-bottom: 10px; letter-spacing: 0.5px;">📋 DESGLOSE COMPARATIVO HISTÓRICO (ÚLTIMAS 4 SEMANAS)</p>', unsafe_allow_html=True)
     
     ultimas_4_semanas = ["Semana 19", "Semana 20", "Semana 21", "Semana 22 (Corte)"]
-    
-    # Columnas para acomodar horizontalmente cada semana
     cols_semanas = st.columns(4)
     
     for i, sem in enumerate(ultimas_4_semanas):
-        # Filtrar datos de la semana específica
         df_sem = df_master[df_master['Semana'] == sem].copy()
         if tienda != "Todas las Tiendas":
             df_sem = df_sem[df_sem['Tienda'] == tienda]
             
-        # Cálculos de indicadores para esa semana
+        # Agregaciones operativas críticas
         t_ing = df_sem['Total_Ingresos'].sum()
         t_hab = df_sem['Habilitadas'].sum()
+        t_ub = df_sem['Ubicadas'].sum()
         m_rec = df_sem['Meta_Rec'].sum()
         r_rec = df_sem['Real_Rec'].sum()
         
+        # Proporciones e Indicadores Relativos
+        pct_hab = (t_hab / t_ing * 100) if t_ing > 0 else 0.0
+        pct_ub = (t_ub / t_ing * 100) if t_ing > 0 else 0.0
         ef_rec = (r_rec / m_rec * 100) if m_rec > 0 else 0.0
-        p_ub = (df_sem['Ubicadas'].sum() / t_ing * 100) if t_ing > 0 else 0.0
         
-        # Renderizado de la tarjeta estructurada verticalmente en su columna
+        # Bloque de tarjetas rediseñado por columna de semana
         with cols_semanas[i]:
             st.markdown(f'<p class="semana-header">{sem}</p>', unsafe_allow_html=True)
             st.markdown(f"""
@@ -181,24 +182,25 @@ if not df_filtered.empty:
                     </div>
                     <div class="kpi-sub-block">
                         <p class="kpi-label-nested">✨ Piezas Habilitadas</p>
-                        <p class="kpi-value-nested">{t_hab:,}</p>
+                        <div class="kpi-value-inline">{t_hab:,}</div>
+                        <div class="kpi-pct-inline">({pct_hab:.1f}%)</div>
+                    </div>
+                    <div class="kpi-sub-block">
+                        <p class="kpi-label-nested">📍 Piezas Ubicadas</p>
+                        <div class="kpi-value-inline">{t_ub:,}</div>
+                        <div class="kpi-pct-inline">({pct_ub:.1f}%)</div>
                     </div>
                     <div class="kpi-sub-block">
                         <p class="kpi-label-nested">🎯 % de Recorridos</p>
                         <p class="kpi-value-nested">{ef_rec:.1f}%</p>
                     </div>
-                    <div class="kpi-sub-block">
-                        <p class="kpi-label-nested">📍 % Ubicado Total</p>
-                        <p class="kpi-value-nested">{p_ub:.1f}%</p>
-                    </div>
                 </div>
                 """, unsafe_allow_html=True)
 
     # =========================================================================
-    # --- SECCIÓN 2: MATRIZ GRÁFICA PARALELA (DINÁMICA AL FILTRO DE PERIODO) ---
+    # --- SECCIÓN 2: MATRIZ GRÁFICA PARALELA ---
     # =========================================================================
     st.markdown(f'<p class="graph-title">📊 Gráficos de Rendimiento y Distribución Operativa {label_corte}</p>', unsafe_allow_html=True)
-    
     col_g1, col_g2 = st.columns(2)
     
     with col_g1:
@@ -209,7 +211,7 @@ if not df_filtered.empty:
         fig1.update_layout(plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
         st.plotly_chart(fig1, use_container_width=True)
         
-        # Gráfico 2: Evolución del recorrido (% de Recorridos)
+        # Gráfico 2: Evolución de recorridos por día o semana
         if tipo_periodo == "Por Semana":
             df_g2 = df_filtered.groupby(["Dia_Semana_Num", "Dia_Nombre"]).apply(
                 lambda x: pd.Series({'Eficiencia': (x['Real_Rec'].sum() / x['Meta_Rec'].sum() * 100) if x['Meta_Rec'].sum() > 0 else 0})
@@ -236,7 +238,7 @@ if not df_filtered.empty:
         fig3.update_layout(barmode='stack', plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
         st.plotly_chart(fig3, use_container_width=True)
         
-        # Gráfico 4: % Habilitado vs Ingreso Total
+        # Gráfico 4: Tasas relativas de habilitado y ubicado
         if tipo_periodo == "Por Semana":
             df_g4 = df_filtered.groupby(["Dia_Semana_Num", "Dia_Nombre"]).apply(
                 lambda x: pd.Series({
@@ -299,13 +301,11 @@ if not df_filtered.empty:
         
         for index, row in sub_grupo.iterrows():
             html_table += '<tr style="border-bottom: 1px solid #EFEFEF;">'
-            
             if es_primera_fila:
                 html_table += f'<td rowspan="{limite_filas}" style="padding: 10px; border: 1px solid #D9D9D9; font-weight: bold; text-align: center; background-color: #F9FBFD; color: #1F497D; vertical-align: middle;">{bloque_id}</td>'
                 es_primera_fila = False
                 
             total_ing_fila = row["Total_Ingresos"]
-            
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: 500;">{row["Tienda"]}</td>'
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Sis_Aduana"]):,}</td>'
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Fis_Aduana"]):,}</td>'
@@ -314,7 +314,7 @@ if not df_filtered.empty:
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right; font-weight: bold; background-color: #F9F9F9;">{int(total_ing_fila):,}</td>'
             html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Habilitadas"]):,}</td>'
             
-            # Semáforos analíticos
+            # Formateo condicional para semáforos analíticos en tabla
             val_ef = (row["Real_Rec"] / row["Meta_Rec"] * 100) if row["Meta_Rec"] > 0 else 0
             bg_ef = "#FADBD8" if val_ef < 85.0 else ("#D4E6F1" if val_ef >= 100.0 else "#FFFFFF")
             tx_ef = "#78281F" if val_ef < 85.0 else ("#1B4F72" if val_ef >= 100.0 else "#000000")
