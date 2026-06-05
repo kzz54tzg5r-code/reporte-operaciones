@@ -57,4 +57,123 @@ def get_operational_data():
         {"Fecha": "2026-05-30", "Tienda": "Miravalle", "Sis_Aduana": 88, "Fis_Aduana": 0, "Muertos": 0, "Cajas": 0, "Meta_Rec": 8, "Real_Rec": 0, "Recolectadas": 0, "Habilitadas": 0, "Ubicadas": 0},
         
         # Domingo 31
-        {"Fecha
+        {"Fecha": "2026-05-31", "Tienda": "Vallejo", "Sis_Aduana": 351, "Fis_Aduana": 351, "Muertos": 326, "Cajas": 488, "Meta_Rec": 8, "Real_Rec": 16, "Recolectadas": 884, "Habilitadas": 705, "Ubicadas": 2605},
+        {"Fecha": "2026-05-31", "Tienda": "Arco Norte", "Sis_Aduana": 264, "Fis_Aduana": 107, "Muertos": 57, "Cajas": 78, "Meta_Rec": 8, "Real_Rec": 3, "Recolectadas": 135, "Habilitadas": 784, "Ubicadas": 482},
+        {"Fecha": "2026-05-31", "Tienda": "Puebla Sur", "Sis_Aduana": 104, "Fis_Aduana": 110, "Muertos": 198, "Cajas": 0, "Meta_Rec": 8, "Real_Rec": 2, "Recolectadas": 198, "Habilitadas": 340, "Ubicadas": 440},
+        {"Fecha": "2026-05-31", "Tienda": "Miravalle", "Sis_Aduana": 41, "Fis_Aduana": 0, "Muertos": 0, "Cajas": 0, "Meta_Rec": 8, "Real_Rec": 0, "Recolectadas": 0, "Habilitadas": 0, "Ubicadas": 0}
+    ]
+    df = pd.DataFrame(data)
+    df['Fecha'] = pd.to_datetime(df['Fecha'])
+
+    # Cálculos Financiero-Operativos básicos
+    df['Total_Ingresos'] = df['Sis_Aduana'] + df['Muertos'] + df['Cajas']
+    df['Eficiencia_Recorridos'] = (df['Real_Rec'] / df['Meta_Rec']) * 100
+    df['Porcentaje_Habilitado'] = (df['Habilitadas'] / df['Total_Ingresos']).fillna(0) * 100
+    df['Porcentaje_Ubicado'] = (df['Ubicadas'] / df['Total_Ingresos']).fillna(0) * 100
+    
+    # Conversión estricta a texto en español
+    dias_espanol = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
+    df['Dia_Semana_Num'] = df['Fecha'].dt.dayofweek
+    df['Dia_Nombre'] = df['Dia_Semana_Num'].map(dias_espanol)
+    
+    return df
+
+df = get_operational_data()
+
+# --- HEADER GENERAL ---
+st.markdown('<p class="main-title">👚 PRICE SHOES • Business Intelligence</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">MÓDULO: OPERACIONES ROPA – CONTROL DE ACONDICIONAMIENTO Y PISO (SEM 21)</p>', unsafe_allow_html=True)
+st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
+
+# --- FILTROS DE SIDEBAR ---
+st.sidebar.markdown("### 🎛️ Filtros de Operación")
+tienda = st.sidebar.selectbox("Sucursal / Almacén Ropa", ["Todas las Tiendas"] + list(df['Tienda'].unique()))
+
+df_filtered = df.copy()
+if tienda != "Todas las Tiendas":
+    df_filtered = df_filtered[df_filtered['Tienda'] == tienda]
+
+# =========================================================================
+# --- RESOLUCIÓN GRÁFICA DEFINITIVA DE LA MATRIZ REORGANIZADA ---
+# =========================================================================
+st.markdown('<p class="graph-title">🔍 Matriz General de Auditoría Operativa</p>', unsafe_allow_html=True)
+
+if not df_filtered.empty:
+    # Ordenamiento cronológico explícito (De Lunes a Domingo)
+    df_table = df_filtered.sort_values(by=["Dia_Semana_Num", "Tienda"], ascending=[True, True]).copy()
+    
+    # Construcción estructurada de la tabla HTML para asegurar agrupación y orden exacto de columnas
+    html_table = """
+    <table style="width:100%; border-collapse: collapse; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13.5px; border: 1px solid #D9D9D9;">
+        <thead>
+            <tr style="background-color: #1F497D !important; color: #FFFFFF !important; font-weight: bold;">
+                <th style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; color: white;">Día</th>
+                <th style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; color: white;">Tienda</th>
+                <th style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; color: white;">Aduana Sist.</th>
+                <th style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; color: white;">Aduana Fís.</th>
+                <th style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; color: white;">Muertos</th>
+                <th style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; color: white;">Cajas</th>
+                <th style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; color: white;">Total Ingresos</th>
+                <th style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; color: white;">Piezas Habilitadas</th>
+                <th style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; color: white;">Ef. Recorridos %</th>
+                <th style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; color: white;">% Habilitado</th>
+                <th style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; color: white;">Ubicado %</th>
+            </tr>
+        </thead>
+        <tbody>
+    """
+    
+    # Agrupamos por día de la semana para generar la fusión de celdas vertical (rowspan)
+    grouped_by_day = df_table.groupby("Dia_Nombre", sort=False)
+    
+    for dia, group in grouped_by_day:
+        row_count = len(group)
+        first_row = True
+        
+        for idx, row in group.iterrows():
+            html_table += '<tr style="border-bottom: 1px solid #EFEFEF;">'
+            
+            # Si es la primera sucursal del día, creamos la celda agrupada
+            if first_row:
+                html_table += f'<td rowspan="{row_count}" style="padding: 10px; border: 1px solid #D9D9D9; font-weight: bold; text-align: center; background-color: #F9FBFD; color: #1F497D; vertical-align: middle;">{dia}</td>'
+                first_row = False
+                
+            # Columnas operativas base
+            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: 500;">{row["Tienda"]}</td>'
+            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Sis_Aduana"]):,}</td>'
+            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Fis_Aduana"]):,}</td>'
+            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Muertos"]):,}</td>'
+            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Cajas"]):,}</td>'
+            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right; font-weight: bold; background-color: #F9F9F9;">{int(row["Total_Ingresos"]):,}</td>'
+            
+            # NUEVO ORDEN SOLICITADO: Piezas habilitadas ANTES de Eficiencia Recorridos
+            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Habilitadas"]):,}</td>'
+            
+            # Semaforización para Ef. Recorridos %
+            ef_rec = row["Eficiencia_Recorridos"]
+            bg_ef = "#FADBD8" if ef_rec < 85.0 else ("#D4E6F1" if ef_rec >= 100.0 else "#FFFFFF")
+            color_ef = "#78281F" if ef_rec < 85.0 else ("#1B4F72" if ef_rec >= 100.0 else "#000000")
+            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: bold; background-color: {bg_ef}; color: {color_ef};">{ef_rec:.1f}%</td>'
+            
+            # NUEVO INTEGRADO: % Habilitado DESPUÉS de Eficiencia Recorridos
+            pct_hab = row["Porcentaje_Habilitado"]
+            bg_hab = "#FADBD8" if pct_hab < 85.0 else ("#D4E6F1" if pct_hab >= 100.0 else "#FFFFFF")
+            color_hab = "#78281F" if pct_hab < 85.0 else ("#1B4F72" if pct_hab >= 100.0 else "#000000")
+            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: bold; background-color: {bg_hab}; color: {color_hab};">{pct_hab:.1f}%</td>'
+            
+            # Columna final: Ubicado %
+            pct_ub = row["Porcentaje_Ubicado"]
+            bg_ub = "#FADBD8" if pct_ub < 85.0 else ("#D4E6F1" if pct_ub >= 100.0 else "#FFFFFF")
+            color_ub = "#78281F" if pct_ub < 85.0 else ("#1B4F72" if pct_ub >= 100.0 else "#000000")
+            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: bold; background-color: {bg_ub}; color: {color_ub};">{pct_ub:.1f}%</td>'
+            
+            html_table += '</tr>'
+            
+    html_table += "</tbody></table>"
+    
+    # Inyectamos el HTML de forma limpia y directa en la app
+    st.markdown(html_table, unsafe_allow_html=True)
+else:
+    st.warning("No hay registros disponibles para los filtros seleccionados actualmente.")
+
+st.markdown("<br><p style='font-size:12px; color:#999999;'>CONFIDENCIAL • Dirección de Operaciones Ropa Price Shoes.</p>", unsafe_allow_html=True)
