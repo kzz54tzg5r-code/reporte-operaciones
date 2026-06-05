@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # --- CONFIGURACIÓN DE INTERFAZ GENERAL ---
 st.set_page_config(page_title="Price Shoes - Operaciones Ropa", layout="wide", page_icon="👚")
@@ -87,13 +89,13 @@ def get_operational_data():
         
         {"Mes": "Mayo", "Semana": "Semana 21", "Fecha": "2026-05-31", "Tienda": "Vallejo", "Sis_Aduana": 351, "Fis_Aduana": 351, "Muertos": 326, "Cajas": 488, "Meta_Rec": 8, "Real_Rec": 16, "Recolectadas": 884, "Habilitadas": 705, "Ubicadas": 2605},
         {"Mes": "Mayo", "Semana": "Semana 21", "Fecha": "2026-05-31", "Tienda": "Arco Norte", "Sis_Aduana": 264, "Fis_Aduana": 107, "Muertos": 57, "Cajas": 78, "Meta_Rec": 8, "Real_Rec": 3, "Recolectadas": 135, "Habilitadas": 784, "Ubicadas": 482},
-        {"Mes": "Mayo", "Semana": "Semana 21", "Fecha": "2026-05-31", "Tienda": "Puebla Sur", "Sis_Aduana": 104, "Fis_Aduana": 110, "Muertos": 198, "Cajas": 0, "Meta_Rec": 8, "Real_Rec": 2, "Recolectadas": 198, "Habilitadas": 340, "Ubicadas": 440},
+        {"Mes": "Mayo", "Semana": "Semana 21", "Fecha": "2026-05-31", "Tienda": "Puebla Sur", "Sis_Aduana": 104, "Fis_Aduattributes": 110, "Muertos": 198, "Cajas": 0, "Meta_Rec": 8, "Real_Rec": 2, "Recolectadas": 198, "Habilitadas": 340, "Ubicadas": 440},
         {"Mes": "Mayo", "Semana": "Semana 21", "Fecha": "2026-05-31", "Tienda": "Miravalle", "Sis_Aduana": 41, "Fis_Aduana": 0, "Muertos": 0, "Cajas": 0, "Meta_Rec": 8, "Real_Rec": 0, "Recolectadas": 0, "Habilitadas": 0, "Ubicadas": 0},
 
         # === DATOS HISTÓRICOS ADICIONALES ===
-        {"Mes": "Mayo", "Semana": "Semana 19", "Fecha": "2026-05-10", "Tienda": "Vallejo", "Sis_Aduana": 3867, "Fis_Aduana": 2891, "Muertos": 869, "Cajas": 3144, "Meta_Rec": 47, "Real_Rec": 67, "Recolectadas": 4022, "Habilitadas": 5156, "Ubicadas": 513},
-        {"Mes": "Mayo", "Semana": "Semana 19", "Fecha": "2026-05-10", "Tienda": "Arco Norte", "Sis_Aduana": 1546, "Fis_Aduana": 511, "Muertos": 1366, "Cajas": 471, "Meta_Rec": 47, "Real_Rec": 21, "Recolectadas": 1837, "Habilitadas": 1866, "Ubicadas": 2994},
-        {"Mes": "Mayo", "Semana": "Semana 19", "Fecha": "2026-05-10", "Tienda": "Puebla Sur", "Sis_Aduana": 729, "Fis_Aduana": 501, "Muertos": 3579, "Cajas": 153, "Meta_Rec": 47, "Real_Rec": 63, "Recolectadas": 3723, "Habilitadas": 3434, "Ubicadas": 3544},
+        {"Mes": "Mayo", "Semana": "Semana 19", "Fecha": "2026-05-10", "Tienda": "Vallejo", "Sis_Aduana": 2891, "Fis_Aduana": 2891, "Muertos": 869, "Cajas": 3144, "Meta_Rec": 47, "Real_Rec": 67, "Recolectadas": 4022, "Habilitadas": 5156, "Ubicadas": 513},
+        {"Mes": "Mayo", "Semana": "Semana 19", "Fecha": "2026-05-10", "Tienda": "Arco Norte", "Sis_Aduana": 511, "Fis_Aduana": 511, "Muertos": 1366, "Cajas": 471, "Meta_Rec": 47, "Real_Rec": 21, "Recolectadas": 1837, "Habilitadas": 1866, "Ubicadas": 2994},
+        {"Mes": "Mayo", "Semana": "Semana 19", "Fecha": "2026-05-10", "Tienda": "Puebla Sur", "Sis_Aduana": 501, "Fis_Aduana": 501, "Muertos": 3579, "Cajas": 153, "Meta_Rec": 47, "Real_Rec": 63, "Recolectadas": 3723, "Habilitadas": 3434, "Ubicadas": 3544},
         {"Mes": "Mayo", "Semana": "Semana 19", "Fecha": "2026-05-10", "Tienda": "Miravalle", "Sis_Aduana": 426, "Fis_Aduana": 311, "Muertos": 266, "Cajas": 692, "Meta_Rec": 47, "Real_Rec": 19, "Recolectadas": 368, "Habilitadas": 863, "Ubicadas": 348},
 
         {"Mes": "Mayo", "Semana": "Semana 20", "Fecha": "2026-05-17", "Tienda": "Vallejo", "Sis_Aduana": 3625, "Fis_Aduana": 2943, "Muertos": 1122, "Cajas": 1933, "Meta_Rec": 47, "Real_Rec": 83, "Recolectadas": 3101, "Habilitadas": 6332, "Ubicadas": 759},
@@ -204,62 +206,92 @@ if not df_filtered.empty:
     st.markdown(f'<p class="graph-title">📊 Gráficos de Rendimiento y Distribución Operativa {label_corte}</p>', unsafe_allow_html=True)
     col_g1, col_g2 = st.columns(2)
     
-    with col_g1:
-        df_g1 = df_filtered.groupby("Tienda")["Habilitadas"].sum().reset_index()
-        fig1 = px.bar(df_g1, x="Tienda", y="Habilitadas", title="Piezas Habilitadas por Sucursal",
-                     color_discrete_sequence=['#1F497D'], text_auto='.3s')
-        fig1.update_layout(plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
-        st.plotly_chart(fig1, use_container_width=True)
-        
-        # Ajuste dinámico de eje X si se selecciona histórico completo
-        if tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses":
-            df_g2 = df_filtered.groupby("Semana").apply(
-                lambda x: pd.Series({'Eficiencia': (x['Real_Rec'].sum() / x['Meta_Rec'].sum() * 100) if x['Meta_Rec'].sum() > 0 else 0})
-            ).reset_index()
-            eje_x_g2 = "Semana"
-            titulo_g2 = "Evolución % de Recorridos por Semana"
-        else:
-            df_g2 = df_filtered.groupby(["Dia_Semana_Num", "Dia_Nombre"]).apply(
-                lambda x: pd.Series({'Eficiencia': (x['Real_Rec'].sum() / x['Meta_Rec'].sum() * 100) if x['Meta_Rec'].sum() > 0 else 0})
-            ).reset_index().sort_values("Dia_Semana_Num")
-            eje_x_g2 = "Dia_Nombre"
-            titulo_g2 = "Evolución % de Recorridos por Día"
+    # Determinar eje de tiempo paramétrico
+    if tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses":
+        eje_x = "Semana"
+    else:
+        eje_x = "Dia_Nombre"
 
-        fig2 = px.line(df_g2, x=eje_x_g2, y="Eficiencia", title=titulo_g2,
-                      color_discrete_sequence=['#E6007E'], markers=True)
-        fig2.update_layout(plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
-        st.plotly_chart(fig2, use_container_width=True)
+    with col_g1:
+        # --- PRIMER GRÁFICO: DISTRIBUCIÓN POR ÁREA CON PORCENTAJE ---
+        df_g1 = df_filtered.groupby(eje_x)[["Sis_Aduana", "Muertos", "Cajas"]].sum().reset_index()
+        
+        if eje_x == "Dia_Nombre":
+            df_g1['Dia_Semana_Num'] = df_g1['Dia_Nombre'].map({"Lunes":0, "Martes":1, "Miércoles":2, "Jueves":3, "Viernes":4, "Sábado":5, "Domingo":6})
+            df_g1 = df_g1.sort_values("Dia_Semana_Num")
+
+        fig1 = px.bar(
+            df_g1, 
+            x=eje_x, 
+            y=["Sis_Aduana", "Muertos", "Cajas"], 
+            title="Distribución y % de Composición de Ingresos Totales",
+            color_discrete_sequence=['#1F497D', '#E6007E', '#7F7F7F'],
+            barnorm='percent'
+        )
+        fig1.update_layout(
+            plot_bgcolor='white', 
+            yaxis_title="Porcentaje (%)", 
+            legend_title="Áreas",
+            margin=dict(t=40, b=20, l=20, r=20)
+        )
+        st.plotly_chart(fig1, use_container_width=True)
 
     with col_g2:
-        df_g3 = df_filtered.groupby("Tienda")[["Sis_Aduana", "Muertos", "Cajas"]].sum().reset_index()
-        fig3 = px.bar(df_g3, x="Tienda", y=["Sis_Aduana", "Muertos", "Cajas"], title="Composición de Ingresos por Tienda",
-                     color_discrete_sequence=['#1F497D', '#E6007E', '#7F7F7F'])
-        fig3.update_layout(barmode='stack', plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
-        st.plotly_chart(fig3, use_container_width=True)
-        
-        if tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses":
-            df_g4 = df_filtered.groupby("Semana").apply(
-                lambda x: pd.Series({
-                    'Porcentaje_Habilitado': (x['Habilitadas'].sum() / x['Total_Ingresos'].sum() * 100) if x['Total_Ingresos'].sum() > 0 else 0,
-                    'Porcentaje_Ubicado': (x['Ubicadas'].sum() / x['Total_Ingresos'].sum() * 100) if x['Total_Ingresos'].sum() > 0 else 0
-                })
+        # --- SEGUNDO GRÁFICO: MIXTO (% HABILITADO EN BARRA Y TOTAL INGRESOS EN LÍNEA) ---
+        if eje_x == "Semana":
+            df_g2 = df_filtered.groupby("Semana").agg(
+                Total_Ingresos=('Total_Ingresos', 'sum'),
+                Habilitadas=('Habilitadas', 'sum')
             ).reset_index()
-            eje_x_g4 = "Semana"
-            titulo_g4 = "% Habilitado vs Ubicado por Semana"
         else:
-            df_g4 = df_filtered.groupby(["Dia_Semana_Num", "Dia_Nombre"]).apply(
-                lambda x: pd.Series({
-                    'Porcentaje_Habilitado': (x['Habilitadas'].sum() / x['Total_Ingresos'].sum() * 100) if x['Total_Ingresos'].sum() > 0 else 0,
-                    'Porcentaje_Ubicado': (x['Ubicadas'].sum() / x['Total_Ingresos'].sum() * 100) if x['Total_Ingresos'].sum() > 0 else 0
-                })
+            df_g2 = df_filtered.groupby(["Dia_Semana_Num", "Dia_Nombre"]).agg(
+                Total_Ingresos=('Total_Ingresos', 'sum'),
+                Habilitadas=('Habilitadas', 'sum')
             ).reset_index().sort_values("Dia_Semana_Num")
-            eje_x_g4 = "Dia_Nombre"
-            titulo_g4 = "% Habilitado vs Ubicado por Día"
 
-        fig4 = px.bar(df_g4, x=eje_x_g4, y=["Porcentaje_Habilitado", "Porcentaje_Ubicado"], title=titulo_g4,
-                     barmode='group', color_discrete_sequence=['#1F497D', '#555555'])
-        fig4.update_layout(plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
-        st.plotly_chart(fig4, use_container_width=True)
+        df_g2['Porcentaje_Habilitado'] = (df_g2['Habilitadas'] / df_g2['Total_Ingresos'] * 100).fillna(0)
+
+        # Gráfico con doble eje Y
+        fig2 = make_subplots(specs=[[{"secondary_y": True}]])
+
+        # Barras: Porcentaje Habilitado
+        fig2.add_trace(
+            go.Bar(
+                x=df_g2[eje_x], 
+                y=df_g2['Porcentaje_Habilitado'], 
+                name="% Habilitado",
+                marker_color='#1F497D',
+                text=df_g2['Porcentaje_Habilitado'].map('{:.1f}%'.format),
+                textposition='inside'
+            ),
+            secondary_y=False,
+        )
+
+        # Línea: Volumen de Ingresos Totales
+        fig2.add_trace(
+            go.Scatter(
+                x=df_g2[eje_x], 
+                y=df_g2['Total_Ingresos'], 
+                name="Total Ingresos",
+                mode='lines+markers+text',
+                line=dict(color='#E6007E', width=3),
+                marker=dict(size=8),
+                text=df_g2['Total_Ingresos'].map('{:,}'.format),
+                textposition='top center'
+            ),
+            secondary_y=True,
+        )
+
+        fig2.update_layout(
+            title_text="Rendimiento: % Habilitado vs Volumen Total de Ingresos",
+            plot_bgcolor='white',
+            margin=dict(t=40, b=20, l=20, r=20),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+
+        fig2.update_yaxes(title_text="Porcentaje Habilitado (%)", secondary_y=False, showgrid=False)
+        fig2.update_yaxes(title_text="Total Piezas Ingresadas", secondary_y=True, showgrid=False)
+        st.plotly_chart(fig2, use_container_width=True)
 
     # =========================================================================
     # --- SECCIÓN 3: MATRIZ GENERAL DE AUDITORÍA OPERATIVA ---
