@@ -1,6 +1,7 @@
-import streamlit as st
+import streamlit as pd
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 
 # 1. CONFIGURACIÓN DE LA PÁGINA
 st.set_page_config(
@@ -13,6 +14,7 @@ st.set_page_config(
 COLOR_AZUL_CORP = "#1a2a40"  # Accent 1 (Dark Blue)
 COLOR_GRIS_CORP = "#333333"  # Background 1 (Dark Gray)
 COLOR_GRIS_CLARO = "#f4f4f6"
+COLOR_TEXTO = "#212529"
 
 # Estilos CSS para asegurar el look corporativo
 st.markdown(f"""
@@ -69,7 +71,7 @@ semana_seleccionada = st.sidebar.selectbox(
 )
 
 # Filtrado de dataframe principal
-df_filtrado = df_historico[df_historico["Semana"] == semana_seleccionada]
+df_filtrado = df_historico[df_historico["Semana"] == Brass_seleccionada] if 'Brass_seleccionada' in locals() else df_historico[df_historico["Semana"] == semana_seleccionada]
 
 # 6. SECCIÓN DE KPI CARDS (Resumen Semanal)
 col1, col2, col3, col4 = st.columns(4)
@@ -112,7 +114,7 @@ with col4:
 
 st.write("##")
 
-# 7. SECCIÓN DE GRÁFICOS COMPACTOS (4 KPIs)
+# 7. SECCIÓN DE GRÁFICOS COMPACTOS (4 KPIs solicitados)
 st.markdown("## 📈 Gráficos de Rendimiento por Tienda")
 fila_graficos_1 = st.columns(2)
 fila_graficos_2 = st.columns(2)
@@ -191,13 +193,13 @@ with fila_graficos_2[1]:
         name='Sis_Aduana',
         x=df_filtrado["Tienda"],
         y=df_filtrado["Sis_Aduana"],
-        marker_color="#2b4c7e"
+        marker_color="#2b4c7e"  # Tono azul secundario coordinado
     ))
     fig_desglose.add_trace(go.Bar(
         name='Muertos',
         x=df_filtrado["Tienda"],
         y=df_filtrado["Muertos"],
-        marker_color="#555555"
+        marker_color="#555555"  # Tono gris secundario coordinado
     ))
     fig_desglose.update_layout(
         barmode='stack',
@@ -217,6 +219,7 @@ st.write("---")
 st.markdown("## 📋 Matriz General de Auditoría Operativa")
 st.markdown("Visualización completa del subset de datos de la semana activa.")
 
+# Formatear el dataframe para mostrarlo elegante en la UI
 df_tabla = df_filtrado.copy()
 df_tabla["Sis_Aduana"] = df_tabla["Sis_Aduana"].map("{:,}".format)
 df_tabla["Muertos"] = df_tabla["Muertos"].map("{:,}".format)
