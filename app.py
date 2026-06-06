@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 
 # 1. CONFIGURACIÓN DE LA PÁGINA
 st.set_page_config(
@@ -14,7 +13,6 @@ st.set_page_config(
 COLOR_AZUL_CORP = "#1a2a40"  # Accent 1 (Dark Blue)
 COLOR_GRIS_CORP = "#333333"  # Background 1 (Dark Gray)
 COLOR_GRIS_CLARO = "#f4f4f6"
-COLOR_TEXTO = "#212529"
 
 # Estilos CSS para asegurar el look corporativo
 st.markdown(f"""
@@ -70,7 +68,7 @@ semana_seleccionada = st.sidebar.selectbox(
     index=len(df_historico["Semana"].unique()) - 1
 )
 
-# Filtrado de dataframe principal por la semana activa
+# Filtrado de dataframe principal
 df_filtrado = df_historico[df_historico["Semana"] == semana_seleccionada]
 
 # 6. SECCIÓN DE KPI CARDS (Resumen Semanal)
@@ -114,73 +112,8 @@ with col4:
 
 st.write("##")
 
-# 7. NUEVA SECCIÓN: LÍNEA DE TENDENCIA COMBINADA POR TIENDA
-st.markdown("## 📈 Línea de Tendencia: Desempeño Operativo por Tienda")
-
-fig_tendencia_tienda = go.Figure()
-
-# Barras: Volumen Total Ingresos (Eje Y izquierdo)
-fig_tendencia_tienda.add_trace(go.Bar(
-    name="Volumen Total Ingresos",
-    x=df_filtrado["Tienda"],
-    y=df_filtrado["Total Ingresos"],
-    marker_color="#EFEFEF",
-    yaxis="y",
-    text=df_filtrado["Total Ingresos"].map("{:,}".format),
-    textposition="outside"
-))
-
-# Línea 1: Evolución % Habilitado (Eje Y derecho)
-fig_tendencia_tienda.add_trace(go.Scatter(
-    name="Evolución % Habilitado",
-    x=df_filtrado["Tienda"],
-    y=df_filtrado["Pct_Habilitado_vs_Ingreso"],
-    line=dict(color=COLOR_AZUL_CORP, width=3),
-    marker=dict(size=8),
-    yaxis="y2",
-    text=df_filtrado["Pct_Habilitado_vs_Ingreso"].apply(lambda x: f"{x}%"),
-    mode="lines+markers+text",
-    textposition="top center"
-))
-
-# Línea 2: Evolución % Recorridos (Eje Y derecho)
-fig_tendencia_tienda.add_trace(go.Scatter(
-    name="Evolución % Recorridos",
-    x=df_filtrado["Tienda"],
-    y=df_filtrado["Eficiencia_Recorrido"],
-    line=dict(color="#E6007E", width=3, dash="dash"),
-    marker=dict(size=8),
-    yaxis="y2",
-    text=df_filtrado["Eficiencia_Recorrido"].apply(lambda x: f"{x}%"),
-    mode="lines+markers+text",
-    textposition="bottom center"
-))
-
-# Ajustes de Layout para el doble eje coordinado
-fig_tendencia_tienda.update_layout(
-    plot_bgcolor="rgba(0,0,0,0)",
-    paper_bgcolor="rgba(0,0,0,0)",
-    yaxis=dict(
-        title="Volumen Total Ingresos",
-        side="left",
-        gridcolor=COLOR_GRIS_CLARO
-    ),
-    yaxis2=dict(
-        title="Porcentaje (%)",
-        side="right",
-        overlaying="y",
-        range=[0, df_filtrado["Pct_Habilitado_vs_Ingreso"].max() + 30]
-    ),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0.01),
-    margin=dict(l=40, r=40, t=40, b=40)
-)
-
-st.plotly_chart(fig_tendencia_tienda, use_container_width=True)
-
-st.write("##")
-
-# 8. SECCIÓN DE GRÁFICOS COMPACTOS (4 KPIs solicitados en cuadrícula 2x2)
-st.markdown("## 📊 Detalle de Rendimiento por Tienda")
+# 7. SECCIÓN DE GRÁFICOS COMPACTOS (4 KPIs)
+st.markdown("## 📈 Gráficos de Rendimiento por Tienda")
 fila_graficos_1 = st.columns(2)
 fila_graficos_2 = st.columns(2)
 
@@ -258,13 +191,13 @@ with fila_graficos_2[1]:
         name='Sis_Aduana',
         x=df_filtrado["Tienda"],
         y=df_filtrado["Sis_Aduana"],
-        marker_color="#2b4c7e"  # Tono azul secundario coordinado
+        marker_color="#2b4c7e"
     ))
     fig_desglose.add_trace(go.Bar(
         name='Muertos',
         x=df_filtrado["Tienda"],
         y=df_filtrado["Muertos"],
-        marker_color="#555555"  # Tono gris secundario coordinado
+        marker_color="#555555"
     ))
     fig_desglose.update_layout(
         barmode='stack',
@@ -280,11 +213,10 @@ with fila_graficos_2[1]:
 
 st.write("---")
 
-# 9. MATRIZ GENERAL DE DATOS (Dataframe formateado)
+# 8. MATRIZ GENERAL DE DATOS (Dataframe formateado)
 st.markdown("## 📋 Matriz General de Auditoría Operativa")
 st.markdown("Visualización completa del subset de datos de la semana activa.")
 
-# Formatear el dataframe para mostrarlo elegante en la UI
 df_tabla = df_filtrado.copy()
 df_tabla["Sis_Aduana"] = df_tabla["Sis_Aduana"].map("{:,}".format)
 df_tabla["Muertos"] = df_tabla["Muertos"].map("{:,}".format)
