@@ -2,26 +2,28 @@ import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 
-# ==========================================
-# 1. CONFIGURACIÓN DE LA PÁGINA Y ESTILOS CORPORATIVOS
-# ==========================================
+# 1. CONFIGURACIÓN DE LA PÁGINA
 st.set_page_config(
     page_title="Reporte de Operaciones Ropa",
     page_icon="👕",
     layout="wide"
 )
 
-# Paleta corporativa (25% más oscuras)
-COLOR_AZUL_CORP = "#1a2a40"  # Accent 1
-COLOR_GRIS_CORP = "#333333"  # Background 1
+# 2. DEFINICIÓN DE LA PALETA CORPORATIVA (Variaciones 25% más oscuras)
+COLOR_AZUL_CORP = "#1a2a40"  # Accent 1 (Dark Blue)
+COLOR_GRIS_CORP = "#333333"  # Background 1 (Dark Gray)
 COLOR_GRIS_CLARO = "#f4f4f6"
-COLOR_ROJO_ALERTA = "#E6007E"
-COLOR_VERDE_OK = "#1F497D"
 
+# Estilos CSS para asegurar el look corporativo
 st.markdown(f"""
     <style>
-    .block-container {{ padding-top: 2rem; }}
-    h1, h2, h3 {{ color: {COLOR_AZUL_CORP}; font-family: 'Segoe UI', sans-serif; }}
+    .reportview-container .main .block-container {{
+        padding-top: 2rem;
+    }}
+    h1, h2, h3 {{
+        color: {COLOR_AZUL_CORP};
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }}
     .metric-card {{
         background-color: {COLOR_GRIS_CLARO};
         padding: 15px;
@@ -29,21 +31,13 @@ st.markdown(f"""
         border-left: 5px solid {COLOR_AZUL_CORP};
         box-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }}
-    /* Estilos para replicar exactamente tu tabla HTML corporativa */
-    .table-corp {{ width: 100%; border-collapse: collapse; font-family: 'Segoe UI', sans-serif; }}
-    .table-corp th {{ background-color: {COLOR_AZUL_CORP}; color: white; padding: 10px; font-size: 13px; text-align: center; }}
-    .table-corp td {{ padding: 10px; text-align: center; border-bottom: 1px solid #EFEFEF; font-size: 13px; }}
-    .cell-bg {{ background-color: #F9FBFD; color: {COLOR_VERDE_OK}; font-weight: bold; }}
     </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# 2. PROCESAMIENTO Y CARGA DE DATOS (HISTÓRICO CONSOLIDADO)
-# ==========================================
+# 3. BASE DE DATOS (Histórico Consolidado extraído de la Matriz General)
 @st.cache_data
-def cargar_y_procesar_datos():
-    # Histórico base Semanas 19 y 20
-    data_historica = {
+def cargar_datos():
+    data_operaciones = {
         "Semana": ["Semana 19", "Semana 19", "Semana 19", "Semana 19", 
                    "Semana 20", "Semana 20", "Semana 20", "Semana 20"],
         "Tienda": ["Arco Norte", "Miravalle", "Puebla Sur", "Vallejo", 
@@ -57,179 +51,179 @@ def cargar_y_procesar_datos():
         "Eficiencia_Recorrido": [79.5, 62.4, 81.1, 74.7, 109.4, 14.3, 50.6, 94.8],
         "Pct_Habilitado_vs_Ingreso": [44.7, 40.4, 134.0, 142.6, 70.2, 51.1, 93.6, 176.6]
     }
-    df = pd.DataFrame(data_historica)
-    
-    # Filas detalladas de la Semana 21 (Se agrupan automáticamente por Tienda)
-    data_s21_parcial = {
-        "Semana": ["Semana 21"] * 9,
-        "Tienda": ["Arco Norte", "Miravalle", "Miravalle", "Miravalle", "Miravalle", "Miravalle", "Miravalle", "Miravalle", "Puebla Sur"],
-        "Sis_Aduana": [264, 44, 47, 64, 57, 55, 88, 41, 79],
-        "Muertos": [107, 0, 37, 0, 4, 7, 0, 0, 0],
-        "Cajas": [57, 0, 39, 0, 31, 14, 0, 0, 0],
-        "Ad": [78, 0, 17, 0, 6, 0, 0, 0, 0],
-        "Total Ingresos": [399, 44, 103, 64, 94, 69, 88, 41, 79],
-        "Piezas Habilitadas": [784, 0, 81, 0, 0, 58, 0, 0, 185],
-        "Eficiencia_Recorrido": [117.2, 0.0, 124.8, 0.0, 0.0, 80.0, 0.0, 0.0, 80.0], # Datos calculados por fila
-        "Pct_Habilitado_vs_Ingreso": [127.5, 0.0, 25.1, 0.0, 0.0, 124.8, 0.0, 0.0, 83.7]
-    }
-    df_s21 = pd.DataFrame(data_s21_parcial)
-    
-    # Agrupamos la Semana 21 para que no se repitan las tiendas en la matriz general
-    df_s21_agrupado = df_s21.groupby(["Semana", "Tienda"]).agg({
-        "Sis_Aduana": "sum",
-        "Muertos": "sum",
-        "Cajas": "sum",
-        "Ad": "sum",
-        "Total Ingresos": "sum",
-        "Piezas Habilitadas": "sum"
-    }).reset_index()
-    
-    # Recalculamos los ratios porcentuales correctos a nivel acumulado por tienda
-    df_s21_agrupado["Eficiencia_Recorrido"] = (df_s21_agrupado["Piezas Habilitadas"] / df_s21_agrupado["Total Ingresos"] * 100).round(1)
-    df_s21_agrupado["Pct_Habilitado_vs_Ingreso"] = (df_s21_agrupado["Piezas Habilitadas"] / df_s21_agrupado["Total Ingresos"] * 100).round(1)
-    
-    # Unimos el histórico con la nueva semana limpia
-    df_consolidado = pd.concat([df, df_s21_agrupado], ignore_index=True)
-    return df_consolidado
+    return pd.DataFrame(data_operaciones)
 
-df_historico = cargar_y_procesar_datos()
+df_historico = cargar_datos()
 
-# ==========================================
-# 3. ENCABEZADO PRINCIPAL
-# ==========================================
+# 4. ENCABEZADO PRINCIPAL
 st.title("📊 Operaciones Ropa — Dashboard de Auditoría Operativa")
 st.markdown("### Histórico Consolidado de Procesos de Muertos y Cambios")
 st.write("---")
 
-# Filtro en el Sidebar
+# 5. FILTROS LATERALES (Sidebar)
 st.sidebar.header("Filtros de Búsqueda")
 semana_seleccionada = st.sidebar.selectbox(
-    "Selecciona la Semana para ver el desglose:",
+    "Selecciona la Semana:",
     options=df_historico["Semana"].unique(),
     index=len(df_historico["Semana"].unique()) - 1
 )
+
+# Filtrado de dataframe principal corregido
 df_filtrado = df_historico[df_historico["Semana"] == semana_seleccionada]
 
-# ==========================================
-# 4. TARJETAS KPI RESUMEN (DÁMICAS POR SEMANA SELECCIONADA)
-# ==========================================
+# 6. SECCIÓN DE KPI CARDS (Resumen Semanal)
 col1, col2, col3, col4 = st.columns(4)
+
 with col1:
-    st.markdown(f'<div class="metric-card"><p style="margin:0; font-size:0.9rem; color:#666;">TOTAL INGRESOS</p><h2 style="margin:0; color:{COLOR_AZUL_CORP};">{df_filtrado["Total Ingresos"].sum():,}</h2></div>', unsafe_allow_html=True)
+    total_ingresos = df_filtrado["Total Ingresos"].sum()
+    st.markdown(f"""
+    <div class="metric-card">
+        <p style='margin:0; font-size:0.9rem; color:#666;'>Total Ingresos</p>
+        <h2 style='margin:0; color:{COLOR_AZUL_CORP};'>{total_ingresos:,}</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
 with col2:
-    st.markdown(f'<div class="metric-card"><p style="margin:0; font-size:0.9rem; color:#666;">PIEZAS HABILITADAS</p><h2 style="margin:0; color:{COLOR_AZUL_CORP};">{df_filtrado["Piezas Habilitadas"].sum():,} ({df_filtrado["Piezas Habilitadas"].sum()/df_filtrado["Total Ingresos"].sum()*100:.1f}%)</h2></div>', unsafe_allow_html=True)
+    total_habilitado = df_filtrado["Piezas Habilitadas"].sum()
+    st.markdown(f"""
+    <div class="metric-card">
+        <p style='margin:0; font-size:0.9rem; color:#666;'>Piezas Habilitadas</p>
+        <h2 style='margin:0; color:{COLOR_AZUL_CORP};'>{total_habilitado:,}</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
 with col3:
-    st.markdown(f'<div class="metric-card"><p style="margin:0; font-size:0.9rem; color:#666;">PIEZAS UBICADAS</p><h2 style="margin:0; color:{COLOR_AZUL_CORP};">{df_filtrado["Cajas"].sum():,}</h2></div>', unsafe_allow_html=True)
+    eficiencia_promedio = df_filtrado["Eficiencia_Recorrido"].mean()
+    st.markdown(f"""
+    <div class="metric-card">
+        <p style='margin:0; font-size:0.9rem; color:#666;'>Eficiencia de Recorrido Prom.</p>
+        <h2 style='margin:0; color:{COLOR_AZUL_CORP};'>{eficiencia_promedio:.1f}%</h2>
+    </div>
+    """, unsafe_allow_html=True)
+
 with col4:
-    st.markdown(f'<div class="metric-card"><p style="margin:0; font-size:0.9rem; color:#666;">% DE RECORRIDOS</p><h2 style="margin:0; color:{COLOR_AZUL_CORP};">{df_filtrado["Eficiencia_Recorrido"].mean():.1f}%</h2></div>', unsafe_allow_html=True)
+    pct_gral = (total_habilitado / total_ingresos) * 100 if total_ingresos > 0 else 0
+    st.markdown(f"""
+    <div class="metric-card">
+        <p style='margin:0; font-size:0.9rem; color:#666;'>% Habilitado vs Ingreso</p>
+        <h2 style='margin:0; color:{COLOR_AZUL_CORP};'>{pct_gral:.1f}%</h2>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.write("##")
 
-# ==========================================
-# 5. TABLA DINÁMICA DE TENDENCIA Y VARIACIÓN INTERSEMANAL
-# ==========================================
-st.markdown("## 📈 Análisis de Tendencia y Variación Intersemanal")
+# 7. SECCIÓN DE GRÁFICOS COMPACTOS (4 KPIs en cuadrícula 2x2)
+st.markdown("## 📈 Gráficos de Rendimiento por Tienda")
+fila_graficos_1 = st.columns(2)
+fila_graficos_2 = st.columns(2)
 
-# Agrupación por semanas para calcular los deltas automáticamente
-df_semanal = df_historico.groupby("Semana").agg({
-    "Total Ingresos": "sum",
-    "Piezas Habilitadas": "sum",
-    "Eficiencia_Recorrido": "mean"
-}).reset_index()
+# Gráfico 1: Eficiencia del Recorrido por Tienda
+with fila_graficos_1[0]:
+    fig_recorrido = go.Figure()
+    fig_recorrido.add_trace(go.Bar(
+        x=df_filtrado["Tienda"],
+        y=df_filtrado["Eficiencia_Recorrido"],
+        marker_color=COLOR_AZUL_CORP,
+        text=df_filtrado["Eficiencia_Recorrido"].apply(lambda x: f"{x}%"),
+        textposition='auto'
+    ))
+    fig_recorrido.update_layout(
+        title="Eficiencia del Recorrido (%)",
+        xaxis_title="Tiendas",
+        yaxis_title="Porcentaje",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(gridcolor=COLOR_GRIS_CLARO)
+    )
+    st.plotly_chart(fig_recorrido, use_container_width=True)
 
-# Cálculo automático de diferencias inter-semanales
-df_semanal["Vol_Delta"] = df_semanal["Total Ingresos"].diff()
-df_semanal["Vol_Delta_Pct"] = df_semanal["Total Ingresos"].pct_change() * 100
-df_semanal["Piezas_Delta"] = df_semanal["Piezas Habilitadas"].diff()
-df_semanal["Piezas_Delta_Pct"] = df_semanal["Piezas Habilitadas"].pct_change() * 100
-df_semanal["Ef_Delta"] = df_semanal["Eficiencia_Recorrido"].diff()
+# Gráfico 2: % Habilitado vs Ingreso Total
+with fila_graficos_1[1]:
+    fig_pct_hab = go.Figure()
+    fig_pct_hab.add_trace(go.Bar(
+        x=df_filtrado["Tienda"],
+        y=df_filtrado["Pct_Habilitado_vs_Ingreso"],
+        marker_color=COLOR_GRIS_CORP,
+        text=df_filtrado["Pct_Habilitado_vs_Ingreso"].apply(lambda x: f"{x}%"),
+        textposition='auto'
+    ))
+    fig_pct_hab.update_layout(
+        title="% Habilitado vs Ingreso Total",
+        xaxis_title="Tiendas",
+        yaxis_title="Porcentaje",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(gridcolor=COLOR_GRIS_CLARO)
+    )
+    st.plotly_chart(fig_pct_hab, use_container_width=True)
 
-# Construcción de la tabla HTML limpia
-html_table = f"""
-<table class="table-corp">
-    <tr>
-        <th>Dimensión Temporal</th>
-        <th>Vol. Ingresos Total</th>
-        <th>Δ Vs. Sem Anterior</th>
-        <th>Piezas Habilitadas</th>
-        <th>Δ Vs. Sem Anterior</th>
-        <th>% Rendimiento Recorridos</th>
-        <th>Δ Eficiencia Recorridos</th>
-    </tr>
-"""
+# Gráfico 3: Comparativo de Volumen (Ingreso vs Piezas Habilitadas)
+with fila_graficos_2[0]:
+    fig_volumen = go.Figure()
+    fig_volumen.add_trace(go.Bar(
+        name='Total Ingresos',
+        x=df_filtrado["Tienda"],
+        y=df_filtrado["Total Ingresos"],
+        marker_color=COLOR_AZUL_CORP
+    ))
+    fig_volumen.add_trace(go.Bar(
+        name='Piezas Habilitadas',
+        x=df_filtrado["Tienda"],
+        y=df_filtrado["Piezas Habilitadas"],
+        marker_color=COLOR_GRIS_CORP
+    ))
+    fig_volumen.update_layout(
+        barmode='group',
+        title="Comparativo Volumen: Ingresos vs Piezas Habilitadas",
+        xaxis_title="Tiendas",
+        yaxis_title="Cantidad de Piezas",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(gridcolor=COLOR_GRIS_CLARO),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    st.plotly_chart(fig_volumen, use_container_width=True)
 
-for i, row in df_semanal.iterrows():
-    if i == 0:
-        d_vol = "N/A (Línea Base)"
-        d_piezas = "N/A"
-        d_ef = "N/A"
-    else:
-        c_vol = COLOR_ROJO_ALERTA if row["Vol_Delta"] < 0 else COLOR_VERDE_OK
-        c_p = COLOR_ROJO_ALERTA if row["Piezas_Delta"] < 0 else COLOR_VERDE_OK
-        c_ef = COLOR_ROJO_ALERTA if row["Ef_Delta"] < 0 else COLOR_VERDE_OK
-        
-        d_vol = f'<b style="color:{c_vol}">{row["Vol_Delta"]:+,} u. ({row["Vol_Delta_Pct"]:.1f}%)</b>'
-        d_piezas = f'<b style="color:{c_p}">{row["Piezas_Delta"]:+,} u. ({row["Piezas_Delta_Pct"]:.1f}%)</b>'
-        d_ef = f'<b style="color:{c_ef}">{row["Ef_Delta"]:+.1f} pp</b>'
+# Gráfico 4: Desglose del Proceso Operativo (Sis_Aduana vs Muertos)
+with fila_graficos_2[1]:
+    fig_desglose = go.Figure()
+    fig_desglose.add_trace(go.Bar(
+        name='Sis_Aduana',
+        x=df_filtrado["Tienda"],
+        y=df_filtrado["Sis_Aduana"],
+        marker_color="#2b4c7e"  # Tono azul secundario coordinado
+    ))
+    fig_desglose.add_trace(go.Bar(
+        name='Muertos',
+        x=df_filtrado["Tienda"],
+        y=df_filtrado["Muertos"],
+        marker_color="#555555"  # Tono gris secundario coordinado
+    ))
+    fig_desglose.update_layout(
+        barmode='stack',
+        title="Desglose Operativo: Sis_Aduana vs Muertos",
+        xaxis_title="Tiendas",
+        yaxis_title="Cantidad",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(gridcolor=COLOR_GRIS_CLARO),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    st.plotly_chart(fig_desglose, use_container_width=True)
 
-    pct_hab = (row["Piezas Habilitadas"] / row["Total Ingresos"]) * 100
-    
-    html_table += f"""
-    <tr>
-        <td class="cell-bg">{row['Semana']}</td>
-        <td>{row['Total Ingresos']:,}</td>
-        <td>{d_vol}</td>
-        <td>{row['Piezas Habilitadas']:,} <small style="color:#555">({pct_hab:.1f}%)</small></td>
-        <td>{d_piezas}</td>
-        <td style="font-weight:bold;">{row['Eficiencia_Recorrido']:.1f}%</td>
-        <td>{d_ef}</td>
-    </tr>
-    """
-html_table += "</table>"
-st.markdown(html_table, unsafe_allow_html=True)
-
-st.write("##")
-
-# ==========================================
-# 6. GRÁFICA DE EVOLUCIÓN (LÍNEA DE TENDENCIA VS VOLUMEN)
-# ==========================================
-fig_linea = go.Figure()
-# Barras para el volumen de entrada
-fig_linea.add_trace(go.Bar(
-    name="Volumen Total Ingresos",
-    x=df_semanal["Semana"],
-    y=df_semanal["Total Ingresos"],
-    marker_color="#EFEFEF",
-    yaxis="y"
-))
-# Línea para el rendimiento
-fig_linea.add_trace(go.Scatter(
-    name="Evolución % Recorridos",
-    x=df_semanal["Semana"],
-    y=df_semanal["Eficiencia_Recorrido"],
-    line=dict(color=COLOR_ROJO_ALERTA, width=3, dash="dash"),
-    marker=dict(size=8),
-    yaxis="y2"
-))
-
-fig_linea.update_layout(
-    title="Línea de Tendencia: Desempeño Operativo vs Volumen de Entrada",
-    plot_bgcolor="rgba(0,0,0,0)",
-    paper_bgcolor="rgba(0,0,0,0)",
-    yaxis=dict(title="Volumen Total Ingresos", side="left"),
-    yaxis2=dict(title="Porcentaje (%)", side="right", overlaying="y", range=[0, 120]),
-    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0.01)
-)
-st.plotly_chart(fig_linea, use_container_width=True)
-
-# ==========================================
-# 7. MATRIZ GENERAL (DATAFRAME DE LA SEMANA)
-# ==========================================
 st.write("---")
-st.markdown(f"## 📋 Matriz de Auditoría — Detalle {semana_seleccionada}")
+
+# 8. MATRIZ GENERAL DE DATOS (Dataframe formateado)
+st.markdown("## 📋 Matriz General de Auditoría Operativa")
+st.markdown("Visualización completa del subset de datos de la semana activa.")
+
 df_tabla = df_filtrado.copy()
-for col in ["Sis_Aduana", "Muertos", "Cajas", "Ad", "Total Ingresos", "Piezas Habilitadas"]:
-    df_tabla[col] = df_tabla[col].map("{:,}".format)
+df_tabla["Sis_Aduana"] = df_tabla["Sis_Aduana"].map("{:,}".format)
+df_tabla["Muertos"] = df_tabla["Muertos"].map("{:,}".format)
+df_tabla["Cajas"] = df_tabla["Cajas"].map("{:,}".format)
+df_tabla["Ad"] = df_tabla["Ad"].map("{:,}".format)
+df_tabla["Total Ingresos"] = df_tabla["Total Ingresos"].map("{:,}".format)
+df_tabla["Piezas Habilitadas"] = df_tabla["Piezas Habilitadas"].map("{:,}".format)
 df_tabla["Eficiencia_Recorrido"] = df_tabla["Eficiencia_Recorrido"].map("{:.1f}%".format)
 df_tabla["Pct_Habilitado_vs_Ingreso"] = df_tabla["Pct_Habilitado_vs_Ingreso"].map("{:.1f}%".format)
 
