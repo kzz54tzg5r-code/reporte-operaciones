@@ -1,7 +1,6 @@
-import streamlit as pd
+import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 
 # 1. CONFIGURACIÓN DE LA PÁGINA
 st.set_page_config(
@@ -14,7 +13,6 @@ st.set_page_config(
 COLOR_AZUL_CORP = "#1a2a40"  # Accent 1 (Dark Blue)
 COLOR_GRIS_CORP = "#333333"  # Background 1 (Dark Gray)
 COLOR_GRIS_CLARO = "#f4f4f6"
-COLOR_TEXTO = "#212529"
 
 # Estilos CSS para asegurar el look corporativo
 st.markdown(f"""
@@ -71,7 +69,7 @@ semana_seleccionada = st.sidebar.selectbox(
 )
 
 # Filtrado de dataframe principal
-df_filtrado = df_historico[df_historico["Semana"] == Brass_seleccionada] if 'Brass_seleccionada' in locals() else df_historico[df_historico["Semana"] == semana_seleccionada]
+df_filtrado = df_historico[df_historico["Semana"] == semana_seleccionada]
 
 # 6. SECCIÓN DE KPI CARDS (Resumen Semanal)
 col1, col2, col3, col4 = st.columns(4)
@@ -114,7 +112,7 @@ with col4:
 
 st.write("##")
 
-# 7. SECCIÓN DE GRÁFICOS COMPACTOS (4 KPIs solicitados)
+# 7. SECCIÓN DE GRÁFICOS COMPACTOS (4 KPIs)
 st.markdown("## 📈 Gráficos de Rendimiento por Tienda")
 fila_graficos_1 = st.columns(2)
 fila_graficos_2 = st.columns(2)
@@ -144,3 +142,46 @@ with fila_graficos_1[1]:
     fig_pct_hab = go.Figure()
     fig_pct_hab.add_trace(go.Bar(
         x=df_filtrado["Tienda"],
+        y=df_filtrado["Pct_Habilitado_vs_Ingreso"],
+        marker_color=COLOR_GRIS_CORP,
+        text=df_filtrado["Pct_Habilitado_vs_Ingreso"].apply(lambda x: f"{x}%"),
+        textposition='auto'
+    ))
+    fig_pct_hab.update_layout(
+        title="% Habilitado vs Ingreso Total",
+        xaxis_title="Tiendas",
+        yaxis_title="Porcentaje",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(gridcolor=COLOR_GRIS_CLARO)
+    )
+    st.plotly_chart(fig_pct_hab, use_container_width=True)
+
+# Gráfico 3: Comparativo de Volumen (Ingreso vs Piezas Habilitadas)
+with fila_graficos_2[0]:
+    fig_volumen = go.Figure()
+    fig_volumen.add_trace(go.Bar(
+        name='Total Ingresos',
+        x=df_filtrado["Tienda"],
+        y=df_filtrado["Total Ingresos"],
+        marker_color=COLOR_AZUL_CORP
+    ))
+    fig_volumen.add_trace(go.Bar(
+        name='Piezas Habilitadas',
+        x=df_filtrado["Tienda"],
+        y=df_filtrado["Piezas Habilitadas"],
+        marker_color=COLOR_GRIS_CORP
+    ))
+    fig_volumen.update_layout(
+        barmode='group',
+        title="Comparativo Volumen: Ingresos vs Piezas Habilitadas",
+        xaxis_title="Tiendas",
+        yaxis_title="Cantidad de Piezas",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(gridcolor=COLOR_GRIS_CLARO),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    st.plotly_chart(fig_volumen, use_container_width=True)
+
+# Gráfico 4
