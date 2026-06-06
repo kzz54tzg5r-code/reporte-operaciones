@@ -8,7 +8,7 @@ from plotly.subplots import make_subplots
 # =========================================================================
 st.set_page_config(page_title="Price Shoes - Operaciones Ropa", layout="wide", page_icon="👚")
 
-# Reglas CSS Globales (Solución definitiva para inyectar Azul Énfasis 1 Oscuro 25%: #1F497D)
+# Reglas CSS Globales (Inyección del color Azul Énfasis 1 Oscuro 25%: #1F497D)
 st.markdown("""
     <style>
     .reportview-container { background-color: #FFFFFF; }
@@ -46,7 +46,7 @@ st.markdown("""
     .kpi-value-inline { color: #1F497D; font-size: 18px; font-weight: bold; margin: 0; display: inline-block; }
     .kpi-pct-inline { color: #E6007E; font-size: 15px; font-weight: bold; margin-left: 8px; display: inline-block; }
 
-    /* REGLAS CSS DEFINITIVAS PARA ARREGLAR LOS ENCABEZADOS BLANCOS DE LA MATRIZ */
+    /* REGLAS CSS PARA LOS ENCABEZADOS DE LA TABLA (AZUL ÉNFASIS 1, OSCURO 25%) */
     .tabla-auditoria {
         width: 100%;
         border-collapse: collapse;
@@ -55,14 +55,14 @@ st.markdown("""
         border: 1px solid #D9D9D9 !important;
     }
     
-    /* Fuerza el color de fondo en la fila contenedora */
+    /* Selector estricto para forzar el color en la primera fila completa */
     .tabla-auditoria tr:first-child {
         background-color: #1F497D !important;
         color: #FFFFFF !important;
         height: 42px;
     }
     
-    /* Fuerza el fondo azul y letras blancas directamente en cada celda del header */
+    /* Inyección directa en cada celda del encabezado para anular bloqueos de Streamlit */
     .tabla-auditoria tr:first-child td {
         background-color: #1F497D !important;
         color: #FFFFFF !important;
@@ -116,7 +116,7 @@ def get_operational_data():
         {"Mes": "Mayo", "Semana": "Semana 21", "Fecha": "2026-05-31", "Tienda": "Puebla Sur", "Sis_Aduana": 104, "Fis_Aduana": 110, "Muertos": 198, "Cajas": 0, "Meta_Rec": 8, "Real_Rec": 2, "Recolectadas": 198, "Habilitadas": 340, "Ubicadas": 440},
         {"Mes": "Mayo", "Semana": "Semana 21", "Fecha": "2026-05-31", "Tienda": "Miravalle", "Sis_Aduana": 41, "Fis_Aduana": 0, "Muertos": 0, "Cajas": 0, "Meta_Rec": 8, "Real_Rec": 0, "Recolectadas": 0, "Habilitadas": 0, "Ubicadas": 0},
 
-        # BLOQUES DE SEMANAS ANTERIORES Y CIERRES CONSOLIDADOS
+        # BLOQUES DE HISTÓRICOS CIERRES SEMANALES CONSOLIDADOS
         {"Mes": "Mayo", "Semana": "Semana 19", "Fecha": "2026-05-10", "Tienda": "Vallejo", "Sis_Aduana": 2891, "Fis_Aduana": 2891, "Muertos": 869, "Cajas": 3144, "Meta_Rec": 47, "Real_Rec": 67, "Recolectadas": 4022, "Habilitadas": 5156, "Ubicadas": 513},
         {"Mes": "Mayo", "Semana": "Semana 19", "Fecha": "2026-05-10", "Tienda": "Arco Norte", "Sis_Aduana": 511, "Fis_Aduana": 511, "Muertos": 1366, "Cajas": 471, "Meta_Rec": 47, "Real_Rec": 21, "Recolectadas": 1837, "Habilitadas": 1866, "Ubicadas": 2994},
         {"Mes": "Mayo", "Semana": "Semana 19", "Fecha": "2026-05-10", "Tienda": "Puebla Sur", "Sis_Aduana": 501, "Fis_Aduana": 501, "Muertos": 3579, "Cajas": 153, "Meta_Rec": 47, "Real_Rec": 63, "Recolectadas": 3723, "Habilitadas": 3434, "Ubicadas": 3544},
@@ -271,7 +271,7 @@ if not df_filtered.empty:
         st.plotly_chart(fig2, use_container_width=True)
 
     # =========================================================================
-    # --- BLOQUE 3: MATRIZ GENERAL DE AUDITORÍA OPERATIVA ---
+    # --- BLOQUE 3: MATRIZ GENERAL DE AUDITORÍA OPERATIVA CONSOLIDADOR ---
     # =========================================================================
     st.markdown(f'<p class="graph-title">🔍 Matriz General de Auditoría Operativa {label_corte}</p>', unsafe_allow_html=True)
 
@@ -293,13 +293,30 @@ if not df_filtered.empty:
             </tr>
     """
     
+    # SOLUCIÓN DE AGRUPACIÓN: Colapsa los registros diarios para unificar las tiendas por semana
+    agrupadores = ["Semana", "Tienda"] if (tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses") else ["Dia_Nombre", "Dia_Semana_Num", "Tienda"]
+    
+    df_table = df_filtered.groupby(agrupadores, as_index=False).agg({
+        "Sis_Aduana": "sum",
+        "Fis_Aduana": "sum",
+        "Muertos": "sum",
+        "Cajas": "sum",
+        "Total_Ingresos": "sum",
+        "Habilitadas": "sum",
+        "Ubicadas": "sum",
+        "Meta_Rec": "sum",
+        "Real_Rec": "sum"
+    })
+    
+    # Ordenación estructurada según el tipo de vista seleccionado
     if tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses":
-        df_table = df_filtered.sort_values(by=["Semana", "Tienda"]).copy()
+        df_table = df_table.sort_values(by=["Semana", "Tienda"])
         grouped_matrix = df_table.groupby("Semana", sort=False)
     else:
-        df_table = df_filtered.sort_values(by=["Dia_Semana_Num", "Tienda"]).copy()
+        df_table = df_table.sort_values(by=["Dia_Semana_Num", "Tienda"])
         grouped_matrix = df_table.groupby("Dia_Nombre", sort=False)
     
+    # Renderizado final de las celdas agrupadas en HTML
     for bloque_id, sub_grupo in grouped_matrix:
         limite_filas = len(sub_grupo)
         es_primera_fila = True
@@ -311,35 +328,4 @@ if not df_filtered.empty:
                 es_primera_fila = False
                 
             total_ing_fila = row["Total_Ingresos"]
-            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: 500;">{row["Tienda"]}</td>'
-            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Sis_Aduana"]):,}</td>'
-            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Fis_Aduana"]):,}</td>'
-            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Muertos"]):,}</td>'
-            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Cajas"]):,}</td>'
-            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right; font-weight: bold; background-color: #F9F9F9;">{int(total_ing_fila):,}</td>'
-            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: right;">{int(row["Habilitadas"]):,}</td>'
-            
-            # Formatos condicionales para KPIs operativos
-            val_ef = (row["Real_Rec"] / row["Meta_Rec"] * 100) if row["Meta_Rec"] > 0 else 0
-            bg_ef = "#FADBD8" if val_ef < 85.0 else ("#D4E6F1" if val_ef >= 100.0 else "#FFFFFF")
-            tx_ef = "#78281F" if val_ef < 85.0 else ("#1B4F72" if val_ef >= 100.0 else "#000000")
-            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: bold; background-color: {bg_ef}; color: {tx_ef};">{val_ef:.1f}%</td>'
-            
-            val_hab = (row["Habilitadas"] / total_ing_fila * 100) if total_ing_fila > 0 else 0
-            bg_hab = "#FADBD8" if val_hab < 85.0 else ("#D4E6F1" if val_hab >= 100.0 else "#FFFFFF")
-            tx_hab = "#78281F" if val_hab < 85.0 else ("#1B4F72" if val_hab >= 100.0 else "#000000")
-            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: bold; background-color: {bg_hab}; color: {tx_hab};">{val_hab:.1f}%</td>'
-            
-            val_ub = (row["Ubicadas"] / total_ing_fila * 100) if total_ing_fila > 0 else 0
-            bg_ub = "#FADBD8" if val_ub < 85.0 else ("#D4E6F1" if val_ub >= 100.0 else "#FFFFFF")
-            tx_ub = "#78281F" if val_ub < 85.0 else ("#1B4F72" if val_ub >= 100.0 else "#000000")
-            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: bold; background-color: {bg_ub}; color: {tx_ub};">{val_ub:.1f}%</td>'
-            
-            html_table += '</tr>'
-            
-    html_table += "</tbody></table>"
-    st.markdown(html_table, unsafe_allow_html=True)
-else:
-    st.warning("No se encontraron registros de operaciones de ropa con los filtros aplicados.")
-
-st.markdown("<br><p style='font-size:11px; color:#999999; text-align: center;'>REPORTES DE DIRECCIÓN DE OPERACIONES • PRICE SHOES ROPA • CONFIDENCIAL</p>", unsafe_allow_html=True)
+            html_table += f'<td style="padding: 10px; border: 1px solid #D9D9D9; text-align: center; font-weight: 500;">{row
