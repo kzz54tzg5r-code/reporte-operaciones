@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 
 # 1. CONFIGURACIÓN DE LA PÁGINA
 st.set_page_config(
@@ -13,6 +14,7 @@ st.set_page_config(
 COLOR_AZUL_CORP = "#1a2a40"  # Accent 1 (Dark Blue)
 COLOR_GRIS_CORP = "#333333"  # Background 1 (Dark Gray)
 COLOR_GRIS_CLARO = "#f4f4f6"
+COLOR_TEXTO = "#212529"
 
 # Estilos CSS para asegurar el look corporativo
 st.markdown(f"""
@@ -68,7 +70,7 @@ semana_seleccionada = st.sidebar.selectbox(
     index=len(df_historico["Semana"].unique()) - 1
 )
 
-# Filtrado de dataframe principal corregido
+# Filtrado de dataframe principal (Corregido)
 df_filtrado = df_historico[df_historico["Semana"] == semana_seleccionada]
 
 # 6. SECCIÓN DE KPI CARDS (Resumen Semanal)
@@ -112,7 +114,7 @@ with col4:
 
 st.write("##")
 
-# 7. SECCIÓN DE GRÁFICOS COMPACTOS (4 KPIs en cuadrícula 2x2)
+# 7. SECCIÓN DE GRÁFICOS COMPACTOS (4 KPIs solicitados)
 st.markdown("## 📈 Gráficos de Rendimiento por Tienda")
 fila_graficos_1 = st.columns(2)
 fila_graficos_2 = st.columns(2)
@@ -161,3 +163,71 @@ with fila_graficos_1[1]:
 with fila_graficos_2[0]:
     fig_volumen = go.Figure()
     fig_volumen.add_trace(go.Bar(
+        name='Total Ingresos',
+        x=df_filtrado["Tienda"],
+        y=df_filtrado["Total Ingresos"],
+        marker_color=COLOR_AZUL_CORP
+    ))
+    fig_volumen.add_trace(go.Bar(
+        name='Piezas Habilitadas',
+        x=df_filtrado["Tienda"],
+        y=df_filtrado["Piezas Habilitadas"],
+        marker_color=COLOR_GRIS_CORP
+    ))
+    fig_volumen.update_layout(
+        barmode='group',
+        title="Comparativo Volumen: Ingresos vs Piezas Habilitadas",
+        xaxis_title="Tiendas",
+        yaxis_title="Cantidad de Piezas",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(gridcolor=COLOR_GRIS_CLARO),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    st.plotly_chart(fig_volumen, use_container_width=True)
+
+# Gráfico 4: Desglose del Proceso Operativo (Sis_Aduana vs Muertos)
+with fila_graficos_2[1]:
+    fig_desglose = go.Figure()
+    fig_desglose.add_trace(go.Bar(
+        name='Sis_Aduana',
+        x=df_filtrado["Tienda"],
+        y=df_filtrado["Sis_Aduana"],
+        marker_color="#2b4c7e"  # Tono azul secundario coordinado
+    ))
+    fig_desglose.add_trace(go.Bar(
+        name='Muertos',
+        x=df_filtrado["Tienda"],
+        y=df_filtrado["Muertos"],
+        marker_color="#555555"  # Tono gris secundario coordinado
+    ))
+    fig_desglose.update_layout(
+        barmode='stack',
+        title="Desglose Operativo: Sis_Aduana vs Muertos",
+        xaxis_title="Tiendas",
+        yaxis_title="Cantidad",
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
+        yaxis=dict(gridcolor=COLOR_GRIS_CLARO),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    st.plotly_chart(fig_desglose, use_container_width=True)
+
+st.write("---")
+
+# 8. MATRIZ GENERAL DE DATOS (Dataframe formateado)
+st.markdown("## 📋 Matriz General de Auditoría Operativa")
+st.markdown("Visualización completa del subset de datos de la semana activa.")
+
+# Formatear el dataframe para mostrarlo elegante en la UI
+df_tabla = df_filtrado.copy()
+df_tabla["Sis_Aduana"] = df_tabla["Sis_Aduana"].map("{:,}".format)
+df_tabla["Muertos"] = df_tabla["Muertos"].map("{:,}".format)
+df_tabla["Cajas"] = df_tabla["Cajas"].map("{:,}".format)
+df_tabla["Ad"] = df_tabla["Ad"].map("{:,}".format)
+df_tabla["Total Ingresos"] = df_tabla["Total Ingresos"].map("{:,}".format)
+df_tabla["Piezas Habilitadas"] = df_tabla["Piezas Habilitadas"].map("{:,}".format)
+df_tabla["Eficiencia_Recorrido"] = df_tabla["Eficiencia_Recorrido"].map("{:.1f}%".format)
+df_tabla["Pct_Habilitado_vs_Ingreso"] = df_tabla["Pct_Habilitado_vs_Ingreso"].map("{:.1f}%".format)
+
+st.dataframe(df_tabla, use_container_width=True, hide_index=True)
