@@ -26,7 +26,7 @@ st.markdown("""
     .kpi-value-inline { color: #1F497D; font-size: 18px; font-weight: bold; margin: 0; display: inline-block; }
     .kpi-pct-inline { color: #E6007E; font-size: 15px; font-weight: bold; margin-left: 8px; display: inline-block; }
 
-    /* REGLAS CSS PARA LA MATRIZ DE AUDITORÍA */
+    /* REGLAS CSS PARA TABLAS */
     .tabla-auditoria { width: 100%; border-collapse: collapse; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; border: 1px solid #D9D9D9 !important; }
     .tabla-auditoria tr:first-child { background-color: #1F497D !important; color: #FFFFFF !important; height: 42px; }
     .tabla-auditoria tr:first-child td { background-color: #1F497D !important; color: #FFFFFF !important; font-weight: bold !important; text-align: center !important; padding: 10px; border: 1px solid #D9D9D9 !important; }
@@ -167,115 +167,29 @@ if not df_filtered.empty:
                 """, unsafe_allow_html=True)
 
     # =========================================================================
-    # --- BLOQUE 2: COMPORTAMIENTO GRÁFICO DINÁMICO ---
+    # --- SISTEMA DE PESTAÑAS (TABS) PARA AUDITORÍA Y ANÁLISIS EVOLUTIVO ---
     # =========================================================================
-    st.markdown(f'<p class="graph-title">📊 Gráficos de Rendimiento y Distribución Operativa por Sucursal {label_corte}</p>', unsafe_allow_html=True)
-    col_g1, col_g2 = st.columns(2)
-    eje_x_dinamico = "Tienda" if tienda == "Todas las Tiendas" else ("Semana" if tipo_periodo == "Por Semana" else "Dia_Nombre")
+    tab_auditoria, tab_evolutivo = st.tabs(["🔍 Matriz Operativa de Auditoría", "📈 Reporte de Evolución Intersemanal"])
 
-    with col_g1:
-        df_g1 = df_filtered.groupby(eje_x_dinamico, as_index=False)[["Sis_Aduana", "Muertos", "Cajas"]].sum()
-        df_g1["Total_Fila"] = (df_g1["Sis_Aduana"] + df_g1["Muertos"] + df_g1["Cajas"]).replace(0, 1)
-        pct_sis = (df_g1["Sis_Aduana"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format)
-        pct_mue = (df_g1["Muertos"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format)
-        pct_caj = (df_g1["Cajas"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format)
-        
-        if eje_x_dinamico == "Dia_Nombre":
-            orden_dias = {"Lunes":0, "Martes":1, "Miércoles":2, "Jueves":3, "Viernes":4, "Sábado":5, "Domingo":6}
-            df_g1['orden'] = df_g1['Dia_Nombre'].map(orden_dias)
-            df_g1 = df_g1.sort_values('orden').drop(columns=['orden'])
+    with tab_auditoria:
+        # --- BLOQUE 2: COMPORTAMIENTO GRÁFICO DINÁMICO ---
+        st.markdown(f'<p class="graph-title">📊 Gráficos de Distribución Operativa por Sucursal {label_corte}</p>', unsafe_allow_html=True)
+        col_g1, col_g2 = st.columns(2)
+        eje_x_dinamico = "Tienda" if tienda == "Todas las Tiendas" else ("Semana" if tipo_periodo == "Por Semana" else "Dia_Nombre")
 
-        fig1 = go.Figure()
-        fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Sis_Aduana"], name="Sis_Aduana", marker_color='#1F497D', text=pct_sis, textposition='inside'))
-        fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Muertos"], name="Muertos", marker_color='#E6007E', text=pct_mue, textposition='inside'))
-        fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Cajas"], name="Cajas", marker_color='#7F7F7F', text=pct_caj, textposition='inside'))
-        fig1.update_layout(title="Distribución y % de Composición de Ingresos", barmode='stack', barnorm='percent', plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
-        st.plotly_chart(fig1, use_container_width=True)
-
-    with col_g2:
-        if eje_x_dinamico in ["Semana", "Tienda"]:
-            df_g2 = df_filtered.groupby(eje_x_dinamico, as_index=False).agg(Total_Ingresos=('Total_Ingresos', 'sum'), Habilitadas=('Habilitadas', 'sum'))
-        else:
-            df_g2 = df_filtered.groupby(["Dia_Semana_Num", "Dia_Nombre"], as_index=False).agg(Total_Ingresos=('Total_Ingresos', 'sum'), Habilitadas=('Habilitadas', 'sum')).sort_values("Dia_Semana_Num")
-
-        df_g2['Porcentaje_Habilitado'] = (df_g2['Habilitadas'] / df_g2['Total_Ingresos'] * 100).fillna(0)
-        fig2 = make_subplots(specs=[[{"secondary_y": True}]])
-        fig2.add_trace(go.Bar(x=df_g2[eje_x_dinamico], y=df_g2['Porcentaje_Habilitado'], name="% Habilitado", marker_color='#1F497D', text=df_g2['Porcentaje_Habilitado'].map('{:.1f}%'.format), textposition='inside'), secondary_y=False)
-        fig2.add_trace(go.Scatter(x=df_g2[eje_x_dinamico], y=df_g2['Total_Ingresos'], name="Total Ingresos", mode='lines+markers', line=dict(color='#E6007E', width=3)), secondary_y=True)
-        fig2.update_layout(title_text="Rendimiento: % Habilitado vs Volumen", plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
-        st.plotly_chart(fig2, use_container_width=True)
-
-    # =========================================================================
-    # --- BLOQUE 3: MATRIZ GENERAL DE AUDITORÍA OPERATIVA CONSOLIDADOR ---
-    # =========================================================================
-    st.markdown(f'<p class="graph-title">🔍 Matriz General de Auditoría Operativa {label_corte}</p>', unsafe_allow_html=True)
-
-    html_table = """
-    <table class="tabla-auditoria">
-        <tbody>
-            <tr>
-                <td>Clasificación</td><td>Tienda</td><td>Aduana Sist.</td><td>Aduana Fís.</td>
-                <td>Muertos</td><td>Cajas</td><td>Total Ingresos</td><td>Piezas Habilitadas</td>
-                <td>% Recorridos</td><td>% Habilitado</td><td>Ubicado %</td>
-            </tr>
-    """
-    
-    # Consolidación limpia para colapsar registros diarios en filas únicas semanales por sucursal
-    agrupadores = ["Semana", "Tienda"] if (tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses") else ["Dia_Nombre", "Dia_Semana_Num", "Tienda"]
-    
-    df_table = df_filtered.groupby(agrupadores, as_index=False).agg({
-        "Sis_Aduana": "sum", "Fis_Aduana": "sum", "Muertos": "sum", "Cajas": "sum",
-        "Total_Ingresos": "sum", "Habilitadas": "sum", "Ubicadas": "sum", "Meta_Rec": "sum", "Real_Rec": "sum"
-    })
-    
-    if tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses":
-        df_table = df_table.sort_values(by=["Semana", "Tienda"])
-        grouped_matrix = df_table.groupby("Semana", sort=False)
-    else:
-        df_table = df_table.sort_values(by=["Dia_Semana_Num", "Tienda"])
-        grouped_matrix = df_table.groupby("Dia_Nombre", sort=False)
-    
-    # Renderizado seguro de las filas HTML sin riesgo de truncamiento
-    for bloque_id, sub_grupo in grouped_matrix:
-        limite_filas = len(sub_grupo)
-        es_primera_fila = True
-        
-        for index, row in sub_grupo.iterrows():
-            html_table += '<tr style="border-bottom: 1px solid #EFEFEF;">'
-            if es_primera_fila:
-                html_table += f'<td rowspan="{limite_filas}" style="padding: 10px; border: 1px solid #D9D9D9; font-weight: bold; text-align: center; background-color: #F9FBFD; color: #1F497D; vertical-align: middle;">{bloque_id}</td>'
-                es_primera_fila = False
-                
-            tot_ing = row["Total_Ingresos"]
-            html_table += f'<td class="cell-center" style="font-weight: 500;">{row["Tienda"]}</td>'
-            html_table += f'<td class="cell-td">{int(row["Sis_Aduana"]):,}</td>'
-            html_table += f'<td class="cell-td">{int(row["Fis_Aduana"]):,}</td>'
-            html_table += f'<td class="cell-td">{int(row["Muertos"]):,}</td>'
-            html_table += f'<td class="cell-td">{int(row["Cajas"]):,}</td>'
-            html_table += f'<td class="cell-td" style="font-weight: bold; background-color: #F9F9F9;">{int(tot_ing):,}</td>'
-            html_table += f'<td class="cell-td">{int(row["Habilitadas"]):,}</td>'
+        with col_g1:
+            df_g1 = df_filtered.groupby(eje_x_dinamico, as_index=False)[["Sis_Aduana", "Muertos", "Cajas"]].sum()
+            df_g1["Total_Fila"] = (df_g1["Sis_Aduana"] + df_g1["Muertos"] + df_g1["Cajas"]).replace(0, 1)
+            pct_sis = (df_g1["Sis_Aduana"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format)
+            pct_mue = (df_g1["Muertos"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format)
+            pct_caj = (df_g1["Cajas"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format)
             
-            # Formatos de KPI
-            v_ef = (row["Real_Rec"] / row["Meta_Rec"] * 100) if row["Meta_Rec"] > 0 else 0
-            bg_ef = "#FADBD8" if v_ef < 85.0 else ("#D4E6F1" if v_ef >= 100.0 else "#FFFFFF")
-            tx_ef = "#78281F" if v_ef < 85.0 else ("#1B4F72" if v_ef >= 100.0 else "#000000")
-            html_table += f'<td class="cell-center" style="font-weight: bold; background-color: {bg_ef}; color: {tx_ef};">{v_ef:.1f}%</td>'
-            
-            v_hab = (row["Habilitadas"] / tot_ing * 100) if tot_ing > 0 else 0
-            bg_hab = "#FADBD8" if v_hab < 85.0 else ("#D4E6F1" if v_hab >= 100.0 else "#FFFFFF")
-            tx_hab = "#78281F" if v_hab < 85.0 else ("#1B4F72" if v_hab >= 100.0 else "#000000")
-            html_table += f'<td class="cell-center" style="font-weight: bold; background-color: {bg_hab}; color: {tx_hab};">{v_hab:.1f}%</td>'
-            
-            v_ub = (row["Ubicadas"] / tot_ing * 100) if tot_ing > 0 else 0
-            bg_ub = "#FADBD8" if v_ub < 85.0 else ("#D4E6F1" if v_ub >= 100.0 else "#FFFFFF")
-            tx_ub = "#78281F" if v_ub < 85.0 else ("#1B4F72" if v_ub >= 100.0 else "#000000")
-            html_table += f'<td class="cell-center" style="font-weight: bold; background-color: {bg_ub}; color: {tx_ub};">{v_ub:.1f}%</td>'
-            
-            html_table += '</tr>'
-            
-    html_table += "</tbody></table>"
-    st.markdown(html_table, unsafe_allow_html=True)
-else:
-    st.warning("No se encontraron registros de operaciones de ropa con los filtros aplicados.")
+            if eje_x_dinamico == "Dia_Nombre":
+                orden_dias = {"Lunes":0, "Martes":1, "Miércoles":2, "Jueves":3, "Viernes":4, "Sábado":5, "Domingo":6}
+                df_g1['orden'] = df_g1['Dia_Nombre'].map(orden_dias)
+                df_g1 = df_g1.sort_values('orden').drop(columns=['orden'])
 
-st.markdown("<br><p style='font-size:11px; color:#999999; text-align: center;'>REPORTES DE DIRECCIÓN DE OPERACIONES • PRICE SHOES ROPA • CONFIDENCIAL</p>", unsafe_allow_html=True)
+            fig1 = go.Figure()
+            fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Sis_Aduana"], name="Sis_Aduana", marker_color='#1F497D', text=pct_sis, textposition='inside'))
+            fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Muertos"], name="Muertos", marker_color='#E6007E', text=pct_mue, textposition='inside'))
+            fig1.add_trace(go.Bar(x
