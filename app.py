@@ -8,30 +8,31 @@ from plotly.subplots import make_subplots
 # =========================================================================
 st.set_page_config(page_title="Price Shoes - Operaciones Ropa", layout="wide", page_icon="👚")
 
-# Reglas CSS Globales (Inyección del color Azul Énfasis 1 Oscuro 25%: #1F497D)
+# Reglas CSS Globales (Inyección de Fondo Gris Oscuro #2B2B2B y Azul Marino #153154)
 st.markdown("""
     <style>
-    .reportview-container { background-color: #FFFFFF; }
-    .main-title { color: #000000 !important; font-family: 'Arial', sans-serif; font-size: 34px !important; font-weight: 800; margin-bottom: 0px; }
+    /* Estilos de Fondo y Contenedor Principal */
+    .stApp { background-color: #2B2B2B !important; color: #FFFFFF; }
+    .main-title { color: #FFFFFF !important; font-family: 'Arial', sans-serif; font-size: 34px !important; font-weight: 800; margin-bottom: 0px; }
     .sub-title { color: #E6007E !important; font-family: 'Arial', sans-serif; font-size: 15px !important; font-weight: bold; margin-top: -5px; letter-spacing: 0.5px; text-transform: uppercase; }
-    .graph-title { color: #1F497D !important; font-weight: bold; font-size: 18px; margin-top: 35px; margin-bottom: 15px; border-left: 5px solid #1F497D; padding-left: 10px; }
+    .graph-title { color: #FFFFFF !important; font-weight: bold; font-size: 18px; margin-top: 35px; margin-bottom: 15px; border-left: 5px solid #153154; padding-left: 10px; }
     
-    /* Estructura de tarjetas semanales compactas */
-    .semana-header { background-color: #1F497D; color: white !important; font-weight: bold; text-align: center; padding: 6px; border-radius: 4px 4px 0 0; font-size: 14px; text-transform: uppercase; margin-bottom: 0px; }
-    .kpi-card-nested { background-color: #F8F9FA; border-left: 1px solid #D9D9D9; border-right: 1px solid #D9D9D9; border-bottom: 1px solid #D9D9D9; border-radius: 0 0 4px 4px; padding: 10px 14px; text-align: center; box-shadow: 0px 2px 4px rgba(0,0,0,0.03); margin-bottom: 15px; }
-    .kpi-sub-block { border-bottom: 1px dashed #D9D9D9; padding: 8px 0; }
+    /* Estructura de tarjetas semanales compactas corporativas */
+    .semana-header { background-color: #153154; color: #FFFFFF !important; font-weight: bold; text-align: center; padding: 6px; border-radius: 4px 4px 0 0; font-size: 14px; text-transform: uppercase; margin-bottom: 0px; }
+    .kpi-card-nested { background-color: #3A3A3A; border-left: 1px solid #4A4A4A; border-right: 1px solid #4A4A4A; border-bottom: 1px solid #4A4A4A; border-radius: 0 0 4px 4px; padding: 10px 14px; text-align: center; box-shadow: 0px 4px 6px rgba(0,0,0,0.15); margin-bottom: 15px; }
+    .kpi-sub-block { border-bottom: 1px dashed #555555; padding: 8px 0; }
     .kpi-sub-block:last-child { border-bottom: none; }
-    .kpi-label-nested { color: #555555; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
-    .kpi-value-nested { color: #1F497D; font-size: 18px; font-weight: bold; margin: 0; }
-    .kpi-value-inline { color: #1F497D; font-size: 18px; font-weight: bold; margin: 0; display: inline-block; }
-    .kpi-pct-inline { color: #E6007E; font-size: 15px; font-weight: bold; margin-left: 8px; display: inline-block; }
+    .kpi-label-nested { color: #CCCCCC; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+    .kpi-value-nested { color: #FFFFFF; font-size: 18px; font-weight: bold; margin: 0; }
+    .kpi-value-inline { color: #FFFFFF; font-size: 18px; font-weight: bold; margin: 0; display: inline-block; }
+    .kpi-pct-inline { color: #E6007E; font-size: 14px; font-weight: bold; margin-left: 8px; display: inline-block; }
 
-    /* REGLAS CSS PARA TABLAS */
-    .tabla-auditoria { width: 100%; border-collapse: collapse; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; border: 1px solid #D9D9D9 !important; }
-    .tabla-auditoria tr:first-child { background-color: #1F497D !important; color: #FFFFFF !important; height: 42px; }
-    .tabla-auditoria tr:first-child td { background-color: #1F497D !important; color: #FFFFFF !important; font-weight: bold !important; text-align: center !important; padding: 10px; border: 1px solid #D9D9D9 !important; }
-    .cell-td { padding: 10px; border: 1px solid #D9D9D9; text-align: right; }
-    .cell-center { padding: 10px; border: 1px solid #D9D9D9; text-align: center; }
+    /* REGLAS CSS CORPORATIVAS PARA TABLAS */
+    .tabla-auditoria { width: 100%; border-collapse: collapse; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; border: 1px solid #4A4A4A !important; color: #FFFFFF; }
+    .tabla-auditoria tr:first-child { background-color: #153154 !important; color: #FFFFFF !important; height: 42px; }
+    .tabla-auditoria tr:first-child td { background-color: #153154 !important; color: #FFFFFF !important; font-weight: bold !important; text-align: center !important; padding: 10px; border: 1px solid #4A4A4A !important; }
+    .cell-td { padding: 10px; border: 1px solid #4A4A4A; text-align: right; background-color: #333333; }
+    .cell-center { padding: 10px; border: 1px solid #4A4A4A; text-align: center; background-color: #333333; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -107,7 +108,7 @@ df_master = get_operational_data()
 # --- MARCA CORPORATIVA ---
 st.markdown('<p class="main-title">👚 PRICE SHOES • Operaciones Ropa</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">CONTROL DE OPERACIONES ROPA</p>', unsafe_allow_html=True)
-st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
+st.markdown("<hr style='border: 0; height: 1px; background: #4A4A4A; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
 
 # --- SIDEBAR DE NAVEGACIÓN Y FILTROS ---
 st.sidebar.markdown("### 🎛️ Filtros de Operación")
@@ -138,7 +139,7 @@ if not df_filtered.empty:
     # =========================================================================
     # --- BLOQUE 1: RESUMEN CORPORATIVO DE LAS ÚLTIMAS 4 SEMANAS ---
     # =========================================================================
-    st.markdown('<p style="color: #555555; font-weight: bold; font-size: 14px; margin-bottom: 10px; letter-spacing: 0.5px;">📋 DESGLOSE COMPARATIVO HISTÓRICO (ÚLTIMAS 4 SEMANAS)</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color: #CCCCCC; font-weight: bold; font-size: 14px; margin-bottom: 10px; letter-spacing: 0.5px;">📋 DESGLOSE COMPARATIVO HISTÓRICO (ÚLTIMAS 4 SEMANAS)</p>', unsafe_allow_html=True)
     
     ultimas_4_semanas = ["Semana 19", "Semana 20", "Semana 21", "Semana 22 (Corte)"]
     cols_semanas = st.columns(4)
@@ -191,10 +192,18 @@ if not df_filtered.empty:
                 df_g1 = df_g1.sort_values('orden').drop(columns=['orden'])
 
             fig1 = go.Figure()
-            fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Sis_Aduana"], name="Sis_Aduana", marker_color='#1F497D', text=pct_sis, textposition='inside'))
+            fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Sis_Aduana"], name="Sis_Aduana", marker_color='#153154', text=pct_sis, textposition='inside'))
             fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Muertos"], name="Muertos", marker_color='#E6007E', text=pct_mue, textposition='inside'))
             fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Cajas"], name="Cajas", marker_color='#7F7F7F', text=pct_caj, textposition='inside'))
-            fig1.update_layout(title="Distribución y % de Composición de Ingresos", barmode='stack', barnorm='percent', plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
+            fig1.update_layout(
+                title="Distribución y % de Composición de Ingresos", 
+                barmode='stack', barnorm='percent', 
+                plot_bgcolor='#2B2B2B', paper_bgcolor='#2B2B2B',
+                font=dict(color='#FFFFFF'),
+                margin=dict(t=40, b=20, l=20, r=20)
+            )
+            fig1.update_xaxes(showgrid=False)
+            fig1.update_yaxes(showgrid=True, gridcolor='#4A4A4A')
             st.plotly_chart(fig1, use_container_width=True)
 
         with col_g2:
@@ -206,9 +215,17 @@ if not df_filtered.empty:
             df_g2['Porcentaje_Habilitado'] = (df_g2['Habilitadas'] / df_g2['Total_Ingresos'] * 100).fillna(0)
             
             fig2 = make_subplots(specs=[[{"secondary_y": True}]])
-            fig2.add_trace(go.Bar(x=df_g2[eje_x_dinamico], y=df_g2['Porcentaje_Habilitado'], name="% Habilitado", marker_color='#1F497D', text=df_g2['Porcentaje_Habilitado'].map('{:.1f}%'.format), textposition='inside'), secondary_y=False)
+            fig2.add_trace(go.Bar(x=df_g2[eje_x_dinamico], y=df_g2['Porcentaje_Habilitado'], name="% Habilitado", marker_color='#153154', text=df_g2['Porcentaje_Habilitado'].map('{:.1f}%'.format), textposition='inside'), secondary_y=False)
             fig2.add_trace(go.Scatter(x=df_g2[eje_x_dinamico], y=df_g2['Total_Ingresos'], name="Total Ingresos", mode='lines+markers', line=dict(color='#E6007E', width=3)), secondary_y=True)
-            fig2.update_layout(title_text="Rendimiento: % Habilitado vs Volumen", plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
+            fig2.update_layout(
+                title_text="Rendimiento: % Habilitado vs Volumen", 
+                plot_bgcolor='#2B2B2B', paper_bgcolor='#2B2B2B',
+                font=dict(color='#FFFFFF'),
+                margin=dict(t=40, b=20, l=20, r=20)
+            )
+            fig2.update_xaxes(showgrid=False)
+            fig2.update_yaxes(showgrid=True, gridcolor='#4A4A4A', secondary_y=False)
+            fig2.update_yaxes(showgrid=False, secondary_y=True)
             st.plotly_chart(fig2, use_container_width=True)
 
         # --- BLOQUE 3: MATRIZ GENERAL DE AUDITORÍA OPERATIVA ---
@@ -242,9 +259,9 @@ if not df_filtered.empty:
             es_primera_fila = True
             
             for index, row in sub_grupo.iterrows():
-                html_table += '<tr style="border-bottom: 1px solid #EFEFEF;">'
+                html_table += '<tr style="border-bottom: 1px solid #4A4A4A;">'
                 if es_primera_fila:
-                    html_table += f'<td rowspan="{limite_filas}" style="padding: 10px; border: 1px solid #D9D9D9; font-weight: bold; text-align: center; background-color: #F9FBFD; color: #1F497D; vertical-align: middle;">{bloque_id}</td>'
+                    html_table += f'<td rowspan="{limite_filas}" style="padding: 10px; border: 1px solid #4A4A4A; font-weight: bold; text-align: center; background-color: #1F3D63; color: #FFFFFF; vertical-align: middle;">{bloque_id}</td>'
                     es_primera_fila = False
                     
                 tot_ing = row["Total_Ingresos"]
@@ -253,22 +270,22 @@ if not df_filtered.empty:
                 html_table += f'<td class="cell-td">{int(row["Fis_Aduana"]):,}</td>'
                 html_table += f'<td class="cell-td">{int(row["Muertos"]):,}</td>'
                 html_table += f'<td class="cell-td">{int(row["Cajas"]):,}</td>'
-                html_table += f'<td class="cell-td" style="font-weight: bold; background-color: #F9F9F9;">{int(tot_ing):,}</td>'
+                html_table += f'<td class="cell-td" style="font-weight: bold; background-color: #3D3D3D;">{int(tot_ing):,}</td>'
                 html_table += f'<td class="cell-td">{int(row["Habilitadas"]):,}</td>'
                 
                 v_ef = (row["Real_Rec"] / row["Meta_Rec"] * 100) if row["Meta_Rec"] > 0 else 0
-                bg_ef = "#FADBD8" if v_ef < 85.0 else ("#D4E6F1" if v_ef >= 100.0 else "#FFFFFF")
-                tx_ef = "#78281F" if v_ef < 85.0 else ("#1B4F72" if v_ef >= 100.0 else "#000000")
+                bg_ef = "#5C2525" if v_ef < 85.0 else ("#1B3D54" if v_ef >= 100.0 else "#333333")
+                tx_ef = "#FFC7C7" if v_ef < 85.0 else ("#C7E7FF" if v_ef >= 100.0 else "#FFFFFF")
                 html_table += f'<td class="cell-center" style="font-weight: bold; background-color: {bg_ef}; color: {tx_ef};">{v_ef:.1f}%</td>'
                 
                 v_hab = (row["Habilitadas"] / tot_ing * 100) if tot_ing > 0 else 0
-                bg_hab = "#FADBD8" if v_hab < 85.0 else ("#D4E6F1" if v_hab >= 100.0 else "#FFFFFF")
-                tx_hab = "#78281F" if v_hab < 85.0 else ("#1B4F72" if v_hab >= 100.0 else "#000000")
+                bg_hab = "#5C2525" if v_hab < 85.0 else ("#1B3D54" if v_hab >= 100.0 else "#333333")
+                tx_hab = "#FFC7C7" if v_hab < 85.0 else ("#C7E7FF" if v_hab >= 100.0 else "#FFFFFF")
                 html_table += f'<td class="cell-center" style="font-weight: bold; background-color: {bg_hab}; color: {tx_hab};">{v_hab:.1f}%</td>'
                 
                 v_ub = (row["Ubicadas"] / tot_ing * 100) if tot_ing > 0 else 0
-                bg_ub = "#FADBD8" if v_ub < 85.0 else ("#D4E6F1" if v_ub >= 100.0 else "#FFFFFF")
-                tx_ub = "#78281F" if v_ub < 85.0 else ("#1B4F72" if v_ub >= 100.0 else "#000000")
+                bg_ub = "#5C2525" if v_ub < 85.0 else ("#1B3D54" if v_ub >= 100.0 else "#333333")
+                tx_ub = "#FFC7C7" if v_ub < 85.0 else ("#C7E7FF" if v_ub >= 100.0 else "#FFFFFF")
                 html_table += f'<td class="cell-center" style="font-weight: bold; background-color: {bg_ub}; color: {tx_ub};">{v_ub:.1f}%</td>'
                 html_table += '</tr>'
                 
@@ -312,28 +329,28 @@ if not df_filtered.empty:
 
         for idx, (sem, row) in enumerate(df_metrics_sem.iterrows()):
             if idx == 0:
-                delta_ing = '<span style="color:#7F7F7F; font-size:11px;">N/A (Línea Base)</span>'
-                delta_hab = '<span style="color:#7F7F7F; font-size:11px;">N/A</span>'
-                delta_rec = '<span style="color:#7F7F7F; font-size:11px;">N/A</span>'
+                delta_ing = '<span style="color:#888888; font-size:11px;">N/A (Línea Base)</span>'
+                delta_hab = '<span style="color:#888888; font-size:11px;">N/A</span>'
+                delta_rec = '<span style="color:#888888; font-size:11px;">N/A</span>'
             else:
-                c_ing = "#E6007E" if row['Var_Ing_Abs'] < 0 else "#1F497D"
+                c_ing = "#FF6B6B" if row['Var_Ing_Abs'] < 0 else "#6BE0FF"
                 signo_ing = "" if row['Var_Ing_Abs'] < 0 else "+"
                 delta_ing = f'<b style="color:{c_ing};">{signo_ing}{int(row["Var_Ing_Abs"]):,} u. ({signo_ing}{row["Var_Ing_Pct"]:.1f}%)</b>'
                 
-                c_hab = "#E6007E" if row['Var_Hab_Abs'] < 0 else "#1F497D"
+                c_hab = "#FF6B6B" if row['Var_Hab_Abs'] < 0 else "#6BE0FF"
                 signo_hab = "" if row['Var_Hab_Abs'] < 0 else "+"
                 delta_hab = f'<b style="color:{c_hab};">{signo_hab}{int(row["Var_Hab_Abs"]):,} u. ({signo_hab}{row["Var_Hab_Pct"]:.1f}%)</b>'
                 
-                c_rec = "#E6007E" if row['Var_Delta_Recorridos'] < 0 else "#229954"
+                c_rec = "#FF6B6B" if row['Var_Delta_Recorridos'] < 0 else "#2ECC71"
                 signo_rec = "" if row['Var_Delta_Recorridos'] < 0 else "+"
                 delta_rec = f'<span style="color:{c_rec}; font-weight:bold;">{signo_rec}{row["Var_Delta_Recorridos"]:.1f} pp</span>'
 
             html_comparativo += f"""
-            <tr style="border-bottom: 1px solid #EFEFEF; height:38px;">
-                <td class="cell-center" style="font-weight: bold; background-color: #F9FBFD; color: #1F497D;">{sem}</td>
+            <tr style="border-bottom: 1px solid #4A4A4A; height:38px;">
+                <td class="cell-center" style="font-weight: bold; background-color: #1F3D63; color: #FFFFFF;">{sem}</td>
                 <td class="cell-td" style="font-weight: 500;">{int(row['Total_Ingresos']):,}</td>
                 <td class="cell-center" style="font-size:12px;">{delta_ing}</td>
-                <td class="cell-td" style="font-weight: 500;">{int(row['Habilitadas']):,} <small style="color:#555;">({row['% Habilitado']:.1f}%)</small></td>
+                <td class="cell-td" style="font-weight: 500;">{int(row['Habilitadas']):,} <small style="color:#CCC;">({row['% Habilitado']:.1f}%)</small></td>
                 <td class="cell-center" style="font-size:12px;">{delta_hab}</td>
                 <td class="cell-center" style="font-weight: bold;">{row['% Recorridos']:.1f}%</td>
                 <td class="cell-center" style="font-size:12px;">{delta_rec}</td>
@@ -343,15 +360,25 @@ if not df_filtered.empty:
         html_comparativo += "</tbody></table>"
         st.markdown(html_comparativo, unsafe_allow_html=True)
 
-        # Gráfico complementario de tendencias duales cruzadas
+        # Gráfico complementario de tendencias duales cruzadas corporativo
         fig_trend = make_subplots(specs=[[{"secondary_y": True}]])
-        fig_trend.add_trace(go.Scatter(x=df_metrics_sem.index, y=df_metrics_sem['% Habilitado'], name="Evolución % Habilitado", mode='lines+markers+text', text=df_metrics_sem['% Habilitado'].map('{:.1f}%'.format), textposition="top center", line=dict(color='#1F497D', width=3)), secondary_y=False)
+        fig_trend.add_trace(go.Scatter(x=df_metrics_sem.index, y=df_metrics_sem['% Habilitado'], name="Evolución % Habilitado", mode='lines+markers+text', text=df_metrics_sem['% Habilitado'].map('{:.1f}%'.format), textposition="top center", line=dict(color='#6BE0FF', width=3)), secondary_y=False)
         fig_trend.add_trace(go.Scatter(x=df_metrics_sem.index, y=df_metrics_sem['% Recorridos'], name="Evolución % Recorridos", mode='lines+markers+text', text=df_metrics_sem['% Recorridos'].map('{:.1f}%'.format), textposition="bottom center", line=dict(color='#E6007E', width=3, dash='dash')), secondary_y=False)
-        fig_trend.add_trace(go.Bar(x=df_metrics_sem.index, y=df_metrics_sem['Total_Ingresos'], name="Volumen Total Ingresos", marker_color='#7F7F7F', opacity=0.12), secondary_y=True)
-        fig_trend.update_layout(title="Línea de Tendencia: Desempeño Operativo vs Volumen de Entrada", plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+        fig_trend.add_trace(go.Bar(x=df_metrics_sem.index, y=df_metrics_sem['Total_Ingresos'], name="Volumen Total Ingresos", marker_color='#FFFFFF', opacity=0.08), secondary_y=True)
+        
+        fig_trend.update_layout(
+            title="Línea de Tendencia: Desempeño Operativo vs Volumen de Entrada", 
+            plot_bgcolor='#2B2B2B', paper_bgcolor='#2B2B2B',
+            font=dict(color='#FFFFFF'),
+            margin=dict(t=40, b=20, l=20, r=20), 
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        fig_trend.update_xaxes(showgrid=False)
+        fig_trend.update_yaxes(showgrid=True, gridcolor='#4A4A4A', secondary_y=False)
+        fig_trend.update_yaxes(showgrid=False, secondary_y=True)
         st.plotly_chart(fig_trend, use_container_width=True)
 
 else:
     st.warning("No se encontraron registros de operaciones de ropa con los filtros aplicados.")
 
-st.markdown("<br><p style='font-size:11px; color:#999999; text-align: center;'>REPORTES DE DIRECCIÓN DE OPERACIONES • PRICE SHOES ROPA • CONFIDENCIAL</p>", unsafe_allow_html=True)
+st.markdown("<br><p style='font-size:11px; color:#888888; text-align: center;'>REPORTES DE DIRECCIÓN DE OPERACIONES • PRICE SHOES ROPA • CONFIDENCIAL</p>", unsafe_allow_html=True)
