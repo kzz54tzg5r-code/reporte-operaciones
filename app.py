@@ -7,22 +7,43 @@ st.set_page_config(layout="wide")
 @st.cache_data(ttl=60)
 def load_data():
     url = "https://docs.google.com/spreadsheets/d/18jY8e9houYYTgX2TqWwS-clbzGAjbQzi4tjW7wOR2vI/export?format=xlsx"
-    # Cargamos todas las hojas para ver qué tenemos
     all_sheets = pd.read_excel(url, sheet_name=None)
     
-    # Debug: Mostrar nombres de hojas y columnas para identificar la causa del error
-    st.write("### Diagnóstico de Datos:")
+    # Normalizamos nombres de columnas para evitar el KeyError
+    clean_sheets = {}
     for name, df in all_sheets.items():
-        st.write(f"Hoja '{name}' tiene columnas: {df.columns.tolist()}")
-    
-    return all_sheets
+        # Limpiamos nombres: quitamos espacios extra y convertimos a minúsculas para comparar
+        df.columns = df.columns.str.strip()
+        clean_sheets[name] = df
+    return clean_sheets
 
-st.title("Price Shoes - Reparación de Dashboard")
-data_sheets = load_data()
+st.title("Price Shoes - Diagnóstico de Datos")
+data = load_data()
 
-# Instrucción para el usuario
-st.info("""
-1. Observa la lista de columnas de arriba.
-2. Busca si las columnas que necesitas (como 'Total ingresos', 'Pzas Habilitadas', etc.) aparecen ahí exactamente con ese nombre.
-3. Si los nombres son diferentes (ejemplo: 'Total ingresos ' con un espacio extra al final), por favor **dímelo aquí** para ajustar el código exactamente a tus nombres reales.
-""")
+# --- DIAGNÓSTICO ---
+st.write("### Columnas encontradas por hoja:")
+for name, df in data.items():
+    st.write(f"**{name}**: {df.columns.tolist()}")
+
+st.info("Revisa la lista de arriba. ¿Los nombres coinciden con lo que esperas?")
+
+# --- INTENTO DE VISUALIZACIÓN ---
+st.write("---")
+st.header("Resumen de Semanas")
+
+cols = st.columns(4)
+for i, (name, df) in enumerate(data.items()):
+    if "Sem" in name and i < 4:
+        # Buscamos nombres de columnas ignorando mayúsculas/minúsculas
+        cols_map = {c.lower(): c for c in df.columns}
+        
+        # Intentamos obtener valores
+        try:
+            total_ing = df[cols_map.get('total ingresos')].sum()
+            pzas_hab = df[cols_map.get('pzas habilitadas')].sum()
+            
+            with cols[i]:
+                st.metric(name, f"{int(total_ing):,}")
+                st.write(f"Habilitadas: {int(pzas_hab):,}")
+        except Exception as e:
+            st.error(f"Error en {name}: No se encuentran columnas clave.")
