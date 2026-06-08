@@ -1,4 +1,4 @@
-import streamlit as pd
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -76,6 +76,69 @@ def cargar_resumen_semanal():
         df_sem['Total ingresos'] = df_sem['Ingreso Aduana (sistema)'] + df_sem['Muertos'] + df_sem['Ingresos Cajas']
         return df_sem
     except Exception as e:
-        # Si falla por formato, creamos un set de datos de estructura dummy basada en tus requerimientos
+        # Estructura de respaldo (dummy) perfectamente cerrada e identada a 8 espacios
         data_dummy = {
-            'Tienda':
+            'Tienda': ['Vallejo', 'Ecatepec', 'Arco Norte', 'Puebla Sur', 'Miravalle'],
+            'Ingreso Aduana (sistema)': [459, 441, 226, 82, 46],
+            'Muertos': [571, 46, 310, 0, 37],
+            'Ingresos Cajas': [187, 196, 149, 0, 2],
+            'No. Recorridos meta': [8, 8, 8, 5, 5],
+            'No. Recorridos realizados': [23, 4, 8, 0, 2],
+            'Pzas Recolectadas': [758, 242, 450, 0, 39],
+            'Pzas Habilitadas': [503, 487, 364, 0, 0],
+            'Pzas Ubicadas': [4689, 485, 911, 0, 93]
+        }
+        df_dummy = pd.DataFrame(data_dummy)
+        df_dummy['Total ingresos'] = df_dummy['Ingreso Aduana (sistema)'] + df_dummy['Muertos'] + df_dummy['Ingresos Cajas']
+        return df_dummy
+
+df_checklist = cargar_datos()
+df_semanal = cargar_resumen_semanal()
+
+# -----------------------------------------------------------------------------
+# Sección 1: KPIs Globales de la Operación
+# -----------------------------------------------------------------------------
+st.subheader("📊 Indicadores Clave de Rendimiento (KPIs Semanales)")
+
+if df_semanal is not None:
+    # Cálculos globales
+    tot_ingresos = int(df_semanal['Total ingresos'].sum())
+    tot_recolectado = int(df_semanal['Pzas Recolectadas'].sum())
+    tot_habilitado = int(df_semanal['Pzas Habilitadas'].sum())
+    
+    # KPIs solicitados de Eficiencia y Habilitado
+    meta_recorridos = df_semanal['No. Recorridos meta'].sum()
+    realizados_recorridos = df_semanal['No. Recorridos realizados'].sum()
+    eficiencia_recorrido = (realizados_recorridos / meta_recorridos * 100) if meta_recorridos > 0 else 0
+    
+    # % de Habilitado = Habilitadas / Recolectadas
+    pct_habilitado = (tot_habilitado / tot_recolectado * 100) if tot_recolectado > 0 else 0
+
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total Ingresos (Corregido)", f"{tot_ingresos:,} pzas")
+    col2.metric("Piezas Habilitadas", f"{tot_habilitado:,} pzas")
+    col3.metric("Eficiencia del Recorrido", f"{eficiencia_recorrido:.1f}%")
+    col4.metric("% de Habilitado", f"{pct_habilitado:.1f}%")
+
+st.markdown("---")
+
+# -----------------------------------------------------------------------------
+# Sección 2: Gráficos de Ancho Completo (Full-Width con Etiquetas en Negrita)
+# -----------------------------------------------------------------------------
+st.subheader("📈 Análisis de Distribución y Flujos por Tienda")
+
+if df_semanal is not None:
+    # Gráfico 1: Total ingresos por Tienda (Abarca todo el ancho)
+    fig_ingresos = px.bar(
+        df_semanal, 
+        x='Tienda', 
+        y='Total ingresos',
+        title="<b>Total Ingresos por Tienda (Aduana Sistema + Muertos + Cajas)</b>",
+        text='Total ingresos',
+        color_discrete_sequence=['#1e3a8a'] # Azul corporativo
+    )
+    
+    # Resaltar etiquetas de datos en NEGRITA y configurar formato
+    fig_ingresos.update_traces(
+        texttemplate='<b>%{text:,}</b>', 
+        textposition='outside'
