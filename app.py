@@ -76,25 +76,3 @@ def get_operational_data():
         # 3. Validar la columna de tiempo (usamos la fecha de registro limpia)
         df['Fecha'] = pd.to_datetime(df['Fecha_Corte'], errors='coerce')
         df = df.dropna(subset=['Fecha'])
-        
-        # 4. Forzar que las piezas sean numéricas puras (evita caídas por celdas vacías)
-        df['Piezas'] = pd.to_numeric(df['Piezas'], errors='coerce').fillna(0)
-        
-        # 5. Pivotación Dinámica: Mapear filas según las reglas de tu negocio de ropa
-        df['Sis_Aduana'] = df.apply(lambda r: r['Piezas'] if str(r.get('Motivo_Ingreso', '')).strip() == 'Aduana' else 0, axis=1)
-        df['Muertos'] = df.apply(lambda r: r['Piezas'] if str(r.get('Motivo_Ingreso', '')).strip() == 'Muertos' else 0, axis=1)
-        df['Cajas'] = df.apply(lambda r: r['Piezas'] if str(r.get('Motivo_Ingreso', '')).strip() == 'Cajas' else 0, axis=1)
-        
-        # Búsqueda parcial e insensible a mayúsculas para las actividades realizadas
-        df['Habilitadas'] = df.apply(lambda r: r['Piezas'] if 'habilitad' in str(r.get('Actividad Realizada', '')).lower() else 0, axis=1)
-        df['Ubicadas'] = df.apply(lambda r: r['Piezas'] if 'ubica' in str(r.get('Actividad Realizada', '')).lower() else 0, axis=1)
-        
-        # Control de recorridos de validación por sucursal
-        df['Meta_Rec'] = 8.0  
-        df['Real_Rec'] = df.apply(lambda r: 1.0 if 'recorrido' in str(r.get('Tabla', '')).lower() else 0, axis=1)
-        
-        # Regla de negocio: El ingreso total consolida sistema, muertos y cajas
-        df['Total_Ingresos'] = df['Sis_Aduana'] + df['Muertos'] + df['Cajas']
-        
-        # 6. Agrupación por días de la semana en español evitando duplicados
-        dias_espanol = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "
