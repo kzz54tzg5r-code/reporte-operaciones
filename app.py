@@ -14,12 +14,10 @@ st.set_page_config(
 # Inyección de CSS para la estética corporativa (Azul Énfasis, Fondo Gris Oscuro)
 st.markdown("""
     <style>
-    /* Fondo general de la app */
     .stApp {
         background-color: #1E1E24;
         color: #E0E0E0;
     }
-    /* Contenedores de KPIs */
     .kpi-container {
         background-color: #25252D;
         border-radius: 8px;
@@ -40,7 +38,6 @@ st.markdown("""
         font-weight: bold;
         color: #FFFFFF;
     }
-    /* Títulos de Gráficos y Tablas */
     .graph-title {
         font-size: 16px;
         font-weight: bold;
@@ -50,7 +47,6 @@ st.markdown("""
         border-bottom: 1px solid #33333A;
         padding-bottom: 5px;
     }
-    /* Estilos para la Tabla Ejecutiva */
     .tabla-auditoria {
         width: 100%;
         border-collapse: collapse;
@@ -81,8 +77,7 @@ st.markdown("""
 # =========================================================================
 @st.cache_data
 def cargar_datos_master():
-    # Simulación de las últimas 4 semanas de operación
-    semanas = ["Semana 20", "Semana 21", "Semana 22", "Semana 23"]
+    semanas = ["Semana 19", "Semana 20", "Semana 21", "Semana 22"]
     tiendas = ["Tienda Centro", "Tienda Norte", "Tienda Sur", "Tienda Oeste"]
     dias_semana = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
     
@@ -92,183 +87,9 @@ def cargar_datos_master():
     for sem in semanas:
         for tienda in tiendas:
             for dia in dias_semana:
-                # Componentes exigidos para la fórmula de ingresos totales
                 ingreso_aduana = np.random.randint(40000, 90000)
                 muertos = np.random.randint(5000, 15000)
                 cajas = np.random.randint(2000, 8000)
                 
                 # Regla de Negocio: Total Ingreso = Aduana Sistema + Muertos + Cajas
                 total_ingresos = ingreso_aduana + muertos + cajas
-                
-                piezas_habilitadas = int(total_ingresos * np.random.uniform(0.70, 0.92))
-                ubicadas = int(piezas_habilitadas * np.random.uniform(0.95, 1.0))
-                
-                meta_recorridos = np.random.randint(30, 50)
-                real_recorridos = int(meta_recorridos * np.random.uniform(0.80, 1.02))
-                
-                data.append({
-                    "Semana": sem,
-                    "Tienda": tienda,
-                    "Dia_Semana": dia,
-                    "Ingreso_Aduana_Sistema": ingreso_aduana,
-                    "Muertos": muertos,
-                    "Cajas": cajas,
-                    "Total_Ingresos": total_ingresos,
-                    "Habilitadas": piezas_habilitadas,
-                    "Ubicadas": ubicadas,
-                    "Meta_Rec": meta_recorridos,
-                    "Real_Rec": real_recorridos
-                })
-                
-    return pd.DataFrame(data), semanas
-
-df_master, ultimas_4_semanas = cargar_datos_master()
-
-# =========================================================================
-# 3. CONTROLADORES Y FILTROS (SIDEBAR)
-# =========================================================================
-st.sidebar.markdown("<h2 style='color: #6BE0FF; font-size: 20px;'>Filtros Operaciones Ropa</h2>", unsafe_allow_html=True)
-
-lista_tiendas = ["Todas las Tiendas"] + list(df_master['Tienda'].unique())
-tienda = st.sidebar.selectbox("Selecciona Tienda para el Análisis:", lista_tiendas)
-
-# Filtrado inicial del set de datos
-if tienda != "Todas las Tiendas":
-    df_filtrado = df_master[df_master['Tienda'] == tienda]
-else:
-    df_filtrado = df_master.copy()
-
-# Tomamos la última semana registrada como el corte actual
-semana_actual = ultimas_4_semanas[-1]
-df_actual = df_filtrado[df_filtrado['Semana'] == semana_actual]
-
-# =========================================================================
-# 4. VISTA DE PANELES (TABS PRINCIPALES)
-# =========================================================================
-st.markdown(f"<h1 style='color: #FFFFFF; font-size: 26px; font-weight: 800; margin-bottom:5px;'>Reporte de Operaciones — Distribución Ropa</h1>", unsafe_allow_html=True)
-st.markdown(f"<p style='color: #A0A0A5; font-size: 14px; margin-bottom: 25px;'>Monitoreo de flujo, eficiencias y procesamiento en piso de venta • <b>{semana_actual}</b></p>", unsafe_allow_html=True)
-
-tab_resumen, tab_evolutivo = st.tabs(["📊 Resumen de la Semana Actual", "📈 Evolución Intersemanal"])
-
-# -------------------------------------------------------------------------
-# TAB 1: RESUMEN DE LA SEMANA ACTUAL
-# -------------------------------------------------------------------------
-with tab_resumen:
-    # Cálculos globales agregados
-    total_ing = df_actual['Total_Ingresos'].sum()
-    total_hab = df_actual['Habilitadas'].sum()
-    pct_habilitado = (total_hab / total_ing * 100) if total_ing > 0 else 0
-    
-    meta_r = df_actual['Meta_Rec'].sum()
-    real_r = df_actual['Real_Rec'].sum()
-    eficiencia_recorrido = (real_r / meta_r * 100) if meta_r > 0 else 0
-    
-    # Grid de KPIs principales
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    
-    with kpi1:
-        st.markdown(f"""
-            <div class="kpi-container">
-                <div class="kpi-title">📥 Total Ingresos (Ropa)</div>
-                <div class="kpi-value">{total_ing:,} <span style="font-size:13px; color:#A0A0A5;">uds</span></div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-    with kpi2:
-        st.markdown(f"""
-            <div class="kpi-container">
-                <div class="kpi-title">✨ Piezas Habilitadas</div>
-                <div class="kpi-value">{total_hab:,} <span style="font-size:13px; color:#A0A0A5;">uds</span></div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-    with kpi3:
-        st.markdown(f"""
-            <div class="kpi-container">
-                <div class="kpi-title">🧩 % Habilitado sobre Ingreso</div>
-                <div class="kpi-value"><b>{pct_habilitado:.1f}%</b></div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-    with kpi4:
-        st.markdown(f"""
-            <div class="kpi-container">
-                <div class="kpi-title">🎯 Eficiencia del Recorrido</div>
-                <div class="kpi-value"><b>{eficiencia_recorrido:.1f}%</b></div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    # Agrupación por día de la semana (Lunes, Martes...) para evitar duplicación de fechas
-    st.markdown('<p class="graph-title">📅 Rendimiento Diario Agrupado de la Semana</p>', unsafe_allow_html=True)
-    
-    # Asegurar orden cronológico de los días de la semana
-    orden_dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
-    df_diario = df_actual.groupby("Dia_Semana").agg({
-        "Total_Ingresos": "sum",
-        "Habilitadas": "sum",
-        "Meta_Rec": "sum",
-        "Real_Rec": "sum"
-    }).reindex(orden_dias)
-    
-    df_diario['% Eficiencia Recorrido'] = (df_diario['Real_Rec'] / df_diario['Meta_Rec'] * 100).fillna(0)
-    df_diario['% Habilitado'] = (df_diario['Habilitadas'] / df_diario['Total_Ingresos'] * 100).fillna(0)
-    
-    # Gráfico de barras que abarca todo el ancho de la pantalla
-    chart_data = df_diario[['Total_Ingresos', 'Habilitadas']]
-    st.bar_chart(chart_data, use_container_width=True)
-
-# -------------------------------------------------------------------------
-# TAB 2: EVOLUCIÓN INTERSEMANAL (CON LA REPARACIÓN DEL HTML)
-# -------------------------------------------------------------------------
-with tab_evolutivo:
-    st.markdown('<p class="graph-title">📈 Análisis de Tendencia y Variación Intersemanal</p>', unsafe_allow_html=True)
-
-    # Filtrar únicamente el espectro de las últimas 4 semanas
-    df_evolutivo = df_master[df_master['Semana'].isin(ultimas_4_semanas)].copy()
-    if tienda != "Todas las Tiendas":
-        df_evolutivo = df_evolutivo[df_evolutivo['Tienda'] == tienda]
-
-    # Consolidación por semana cronológica
-    df_metrics_sem = df_evolutivo.groupby("Semana").agg({
-        "Total_Ingresos": "sum", 
-        "Habilitadas": "sum", 
-        "Ubicadas": "sum", 
-        "Meta_Rec": "sum", 
-        "Real_Rec": "sum"
-    }).reindex(ultimas_4_semanas)
-
-    # Cálculos derivados
-    df_metrics_sem['% Habilitado'] = (df_metrics_sem['Habilitadas'] / df_metrics_sem['Total_Ingresos'] * 100).fillna(0)
-    df_metrics_sem['% Recorridos'] = (df_metrics_sem['Real_Rec'] / df_metrics_sem['Meta_Rec'] * 100).fillna(0)
-
-    # Cálculo de variaciones delta respecto a la semana previa
-    df_metrics_sem['Var_Ing_Abs'] = df_metrics_sem['Total_Ingresos'].diff()
-    df_metrics_sem['Var_Ing_Pct'] = df_metrics_sem['Total_Ingresos'].pct_change() * 100
-    df_metrics_sem['Var_Hab_Abs'] = df_metrics_sem['Habilitadas'].diff()
-    df_metrics_sem['Var_Hab_Pct'] = df_metrics_sem['Habilitadas'].pct_change() * 100
-    df_metrics_sem['Var_Delta_Recorridos'] = df_metrics_sem['% Recorridos'].diff()
-
-    # Inicio de la estructura HTML de la tabla ejecutiva
-    html_comparativo = """
-    <table class="tabla-auditoria">
-        <tbody>
-            <tr style="background-color: #1F3D63; color: #FFFFFF; font-weight: bold;">
-                <td class="cell-center">Dimensión Temporal</td>
-                <td class="cell-center">📥 Vol. Ingresos Total</td>
-                <td class="cell-center">Δ Vs. Sem Anterior</td>
-                <td class="cell-center">✨ Piezas Habilitadas</td>
-                <td class="cell-center">Δ Vs. Sem Anterior</td>
-                <td class="cell-center">🎯 % Rendimiento Recorridos</td>
-                <td class="cell-center">Δ Eficiencia Recorridos</td>
-            </tr>
-    """
-
-    for idx, (sem, row) in enumerate(df_metrics_sem.iterrows()):
-        if idx == 0:
-            # Semana base de la serie de datos
-            delta_ing = '<span style="color:#888888; font-size:11px;">N/A (Base)</span>'
-            delta_hab = '<span style="color:#888888; font-size:11px;">N/A</span>'
-            delta_rec = '<span style="color:#888888; font-size:11px;">N/A</span>'
-        else:
-            # Construcción de deltas dinámicos con formato de color corporativo (Azul/Rojo)
-            c_ing = "#FF6B6B
