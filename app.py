@@ -4,11 +4,20 @@ import requests
 import io
 import plotly.graph_objects as go
 
-# --- CONFIGURACIÓN ---
+# Configuración de página
 st.set_page_config(page_title="Price Shoes - Operaciones", layout="wide")
+
+# Estilos CSS para el look de infografía
+st.markdown("""
+    <style>
+    .metric-card { background-color: #f8f9fa; border-radius: 10px; padding: 15px; border-left: 5px solid #1F497D; box-shadow: 2px 2px 5px #ccc; }
+    .title-text { font-size: 20px; font-weight: bold; color: #1F497D; }
+    </style>
+""", unsafe_allow_html=True)
 
 @st.cache_data(ttl=60)
 def get_operational_data():
+    # ... (Se mantiene la lógica de carga de datos anterior) ...
     try:
         ID_DOCUMENTO = "18jY8e9houYYTgX2TqWwS-clbzGAjbQzi4tjW7wOR2vI"
         URL = f"https://docs.google.com/spreadsheets/d/{ID_DOCUMENTO}/export?format=xlsx"
@@ -23,69 +32,51 @@ def get_operational_data():
                 if "Tienda" in df_temp.iloc[idx].astype(str).values:
                     fila_cabecera = idx
                     break
-            
             df = pd.read_excel(excel_file, sheet_name=nombre_pestana, skiprows=fila_cabecera)
             df.columns = df.columns.str.strip()
-            
-            # Asegurar columnas necesarias
             if 'Tienda' in df.columns:
                 df = df[df['Tienda'].notna()]
-                # Nombres de columnas mapeados a valores estándar
-                cols_num = {
-                    'Total ingresos': 'Total_Ing', 'Pzas Habilitadas': 'Hab', 
-                    'Pzas Ubicadas': 'Ubi', 'No. Recorridos realizados': 'Rec_Real',
-                    'No. Recorridos meta': 'Rec_Meta'
-                }
-                df.rename(columns=cols_num, inplace=True)
-                for c in ['Total_Ing', 'Hab', 'Ubi', 'Rec_Real', 'Rec_Meta']:
-                    if c in df.columns: df[c] = pd.to_numeric(df[c], errors='coerce').fillna(0)
-                
                 df['Semana'] = nombre_pestana.strip()
-                df['Mes'] = 'Mayo' if '20' in nombre_pestana or '21' in nombre_pestana else 'Junio'
                 lista_dataframes.append(df)
-        
         return pd.concat(lista_dataframes, ignore_index=True) if lista_dataframes else pd.DataFrame()
-    except Exception as e:
-        st.error(f"Error: {e}")
-        return pd.DataFrame()
+    except: return pd.DataFrame()
 
-# --- INTERFAZ ---
-st.title("👚 Dashboard de Operaciones")
+# Interfaz Principal
+st.markdown("# 👚 PRICE SHOES • Reporte de Operaciones")
 df = get_operational_data()
 
 if not df.empty:
-    # --- BLOQUE DE 4 SEMANAS RECIENTES ---
-    st.subheader("Resumen 4 Semanas Recientes")
-    semanas_ordenadas = sorted(df['Semana'].unique())[-4:]
-    cols = st.columns(len(semanas_ordenadas))
+    # FILTROS LATERALES
+    st.sidebar.header("Filtros de Operación")
+    t = st.sidebar.selectbox("Sucursal", ["Todas"] + sorted([str(x) for x in df['Tienda'].unique()]))
+    s = st.sidebar.selectbox("Semana", ["Todas"] + sorted(df['Semana'].unique().tolist()))
     
-    for i, sem in enumerate(semanas_ordenadas):
-        df_sem = df[df['Semana'] == sem]
-        tot_ing = df_sem['Total_Ing'].sum()
-        hab = df_sem['Hab'].sum()
-        ubi = df_sem['Ubi'].sum()
-        rec_meta = df_sem['Rec_Meta'].sum()
-        rec_real = df_sem['Rec_Real'].sum()
+    df_f = df.copy()
+    if t != "Todas": df_f = df_f[df_f['Tienda'] == t]
+    if s != "Todas": df_f = df_f[df_f['Semana'] == s]
+
+    # INFOGRAFÍA DE 4 SEMANAS (Resumen arriba)
+    st.subheader("📊 Resumen Ejecutivo: Últimas 4 Semanas")
+    semanas_recientes = sorted(df['Semana'].unique())[-4:]
+    cols = st.columns(4)
+    
+    for i, sem in enumerate(semanas_recientes):
+        data = df[df['Semana'] == sem]
+        # Aquí calculamos los indicadores solicitados
+        ing = data['Ingreso Aduana (sistema)'].sum()
+        hab = data['Pzas Habilitadas'].sum()
+        porc_hab = (hab/ing*100) if ing > 0 else 0
         
         with cols[i]:
-            st.markdown(f"**{sem}**")
-            st.metric("Total Ingresos", f"{int(tot_ing):,}")
-            st.metric("Hab. (%)", f"{int(hab):,}", f"{(hab/tot_ing*100 if tot_ing>0 else 0):.1f}%")
-            st.metric("Ubi. (%)", f"{int(ubi):,}", f"{(ubi/tot_ing*100 if tot_ing>0 else 0):.1f}%")
-            st.metric("Recorridos (%)", f"{(rec_real/rec_meta*100 if rec_meta>0 else 0):.1f}%")
+            st.markdown(f'<div class="metric-card">', unsafe_allow_html=True)
+            st.markdown(f'<p class="title-text">{sem}</p>', unsafe_allow_html=True)
+            st.metric("Ingresos", f"{int(ing):,}")
+            st.metric("Habilitadas", f"{int(hab):,}", f"{porc_hab:.1f}%")
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- FILTROS Y TABLA ---
     st.divider()
-    filtro_tienda = st.sidebar.selectbox("Sucursal", ["Todas"] + sorted([str(t) for t in df['Tienda'].unique()]))
-    filtro_mes = st.sidebar.selectbox("Mes", ["Todos", "Mayo", "Junio"])
-    filtro_sem = st.sidebar.selectbox("Semana", ["Todas"] + sorted(df['Semana'].unique().tolist()))
-    
-    # Lógica de filtrado
-    df_f = df.copy()
-    if filtro_tienda != "Todas": df_f = df_f[df_f['Tienda'].astype(str) == filtro_tienda]
-    if filtro_mes != "Todos": df_f = df_f[df_f['Mes'] == filtro_mes]
-    if filtro_sem != "Todas": df_f = df_f[df_f['Semana'] == filtro_sem]
-    
+    # TABLA DE DATOS
+    st.write("### Detalle Operativo")
     st.dataframe(df_f, use_container_width=True)
 else:
-    st.warning("Cargando datos...")
+    st.warning("Conectando con la base de datos...")
