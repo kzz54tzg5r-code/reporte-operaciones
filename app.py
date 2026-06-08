@@ -70,7 +70,6 @@ def get_operational_data():
                 continue
             
             # --- LOCALIZADOR INTELIGENTE DE CABECERAS ---
-            # Rastrea las primeras 12 filas de la pestaña para encontrar la coordenada exacta de "Tienda"
             fila_cabecera = 0
             for idx_fila in range(min(12, len(df_crudo))):
                 valores_fila = df_crudo.iloc[idx_fila].astype(str).str.strip().tolist()
@@ -99,11 +98,11 @@ def get_operational_data():
             columnas_a_renombrar = {k: v for k, v in renombres.items() if k in df_sem.columns}
             df_sem.rename(columns=columnas_a_renombrar, inplace=True)
             
-            # Si tras la corrección de fila la columna principal no existe, se descarta la hoja por inconsistencia
+            # Si tras la corrección de fila la columna principal no existe, se descarta la hoja
             if 'Tienda' not in df_sem.columns:
                 continue
                 
-            # Forzar tipado numérico robusto para evitar errores de agregación (TypeErrors)
+            # Forzar tipado numérico robusto
             columnas_numericas = ['Sis_Aduana', 'Muertos', 'Cajas', 'Habilitadas', 'Ubicadas', 'Meta_Rec', 'Real_Rec']
             for col in columnas_numericas:
                 if col in df_sem.columns:
@@ -111,7 +110,7 @@ def get_operational_data():
                 else:
                     df_sem[col] = 0
             
-            # Filtrado y limpieza profunda de registros basura o filas de separación de días repetidos
+            # Filtrado y limpieza profunda de registros basura o filas repetidas
             df_sem = df_sem[df_sem['Tienda'].notna()]
             df_sem['Tienda_Str'] = df_sem['Tienda'].astype(str).str.strip().str.lower()
             df_sem = df_sem[~df_sem['Tienda_Str'].str.contains('total|resumen|fecha|tienda|ingresos|registros', na=False)]
@@ -119,7 +118,7 @@ def get_operational_data():
             
             # Inyección de las dimensiones analíticas fijas por pestaña
             df_sem['Semana'] = nombre_pestana.strip()
-            df_sem['Mes'] = "Mayo"  # Valor base estimado de inicio del rango de datos actual
+            df_sem['Mes'] = "Mayo"
             
             # Lógica de negocio corregida: Sumatoria total del ingreso
             df_sem['Total_Ingresos'] = df_sem['Sis_Aduana'] + df_sem['Muertos'] + df_sem['Cajas']
@@ -221,4 +220,141 @@ else:
 
                 fig1 = go.Figure()
                 fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Sis_Aduana"], name="Aduana Sistema", marker_color='#1F497D', text=pct_sis, textposition='inside'))
-                fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Muertos"], name="
+                fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Muertos"], name="Muertos", marker_color='#E6007E', text=pct_mue, textposition='inside'))
+                fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Cajas"], name="Cajas", marker_color='#7F7F7F', text=pct_caj, textposition='inside'))
+                fig1.update_layout(title="<b>Composición Porcentual de Ingresos por Tipo</b>", barmode='stack', barnorm='percent', plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
+                st.plotly_chart(fig1, use_container_width=True)
+
+            with col_g2:
+                df_g2 = df_filtered.groupby(eje_x_dinamico, as_index=False).agg(Total_Ingresos=('Total_Ingresos', 'sum'), Habilitadas=('Habilitadas', 'sum'))
+                df_g2['Porcentaje_Habilitado'] = (df_g2['Habilitadas'] / df_g2['Total_Ingresos'] * 100).fillna(0)
+                
+                fig2 = make_subplots(specs=[[{"secondary_y": True}]])
+                fig2.add_trace(go.Bar(x=df_g2[eje_x_dinamico], y=df_g2['Porcentaje_Habilitado'], name="% Habilitado", marker_color='#1F497D', text=df_g2['Porcentaje_Habilitado'].map('{:.1f}%'.format), textposition='inside'), secondary_y=False)
+                fig2.add_trace(go.Scatter(x=df_g2[eje_x_dinamico], y=df_g2['Total_Ingresos'], name="Total Ingresos", mode='lines+markers', line=dict(color='#E6007E', width=3)), secondary_y=True)
+                fig2.update_layout(title_text="<b>Rendimiento Operativo: % Habilitado vs Volumen Total</b>", plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
+                st.plotly_chart(fig2, use_container_width=True)
+
+            st.markdown(f'<p class="graph-title">🔍 Matriz General de Auditoría Unificada {label_corte}</p>', unsafe_allow_html=True)
+
+            html_table = """
+            <table class="tabla-auditoria">
+                <tbody>
+                    <tr>
+                        <td>Clasificación</td><td>Tienda</td><td>Aduana Sist.</td>
+                        <td>Muertos</td><td>Cajas</td><td>Total Ingresos</td><td>Piezas Habilitadas</td>
+                        <td>% Recorridos</td><td>% Habilitado</td><td>Ubicado %</td>
+                    </tr>
+            """
+            
+            df_table = df_filtered.groupby(["Semana", "Tienda"], as_index=False).agg({
+                "Sis_Aduana": "sum", "Muertos": "sum", "Cajas": "sum",
+                "Total_Ingresos": "sum", "Habilitadas": "sum", "Ubicadas": "sum", "Meta_Rec": "sum", "Real_Rec": "sum"
+            }).sort_values(by=["Semana", "Tienda"])
+            
+            grouped_matrix = df_table.groupby("Semana", sort=False)
+            
+            for bloque_id, sub_grupo in grouped_matrix:
+                limite_filas = len(sub_grupo)
+                es_primera_fila = True
+                
+                for index, row in sub_grupo.iterrows():
+                    html_table += '<tr style="border-bottom: 1px solid #EFEFEF;">'
+                    if es_primera_fila:
+                        html_table += f'<td rowspan="{limite_filas}" style="padding: 10px; border: 1px solid #D9D9D9; font-weight: bold; text-align: center; background-color: #F9FBFD; color: #1F497D; vertical-align: middle;">{bloque_id}</td>'
+                        es_primera_fila = False
+                        
+                    tot_ing = row["Total_Ingresos"]
+                    html_table += f'<td class="cell-center" style="font-weight: bold;">{row["Tienda"]}</td>'
+                    html_table += f'<td class="cell-td">{int(row["Sis_Aduana"]):,}</td>'
+                    html_table += f'<td class="cell-td">{int(row["Muertos"]):,}</td>'
+                    html_table += f'<td class="cell-td">{int(row["Cajas"]):,}</td>'
+                    html_table += f'<td class="cell-td" style="font-weight: bold; background-color: #F9F9F9;">{int(tot_ing):,}</td>'
+                    html_table += f'<td class="cell-td">{int(row["Habilitadas"]):,}</td>'
+                    
+                    v_ef = (row["Real_Rec"] / row["Meta_Rec"] * 100) if row["Meta_Rec"] > 0 else 0
+                    bg_ef = "#FADBD8" if v_ef < 85.0 else ("#D4E6F1" if v_ef >= 100.0 else "#FFFFFF")
+                    tx_ef = "#78281F" if v_ef < 85.0 else ("#1B4F72" if v_ef >= 100.0 else "#000000")
+                    html_table += f'<td class="cell-center" style="font-weight: bold; background-color: {bg_ef}; color: {tx_ef};">{v_ef:.1f}%</td>'
+                    
+                    v_hab = (row["Habilitadas"] / tot_ing * 100) if tot_ing > 0 else 0
+                    bg_hab = "#FADBD8" if v_hab < 85.0 else ("#D4E6F1" if v_hab >= 100.0 else "#FFFFFF")
+                    tx_hab = "#78281F" if v_hab < 85.0 else ("#1B4F72" if v_hab >= 100.0 else "#000000")
+                    html_table += f'<td class="cell-center" style="font-weight: bold; background-color: {bg_hab}; color: {tx_hab};">{v_hab:.1f}%</td>'
+                    
+                    v_ub = (row["Ubicadas"] / tot_ing * 100) if tot_ing > 0 else 0
+                    bg_ub = "#FADBD8" if v_ub < 85.0 else ("#D4E6F1" if v_ub >= 100.0 else "#FFFFFF")
+                    tx_ub = "#78281F" if v_ub < 85.0 else ("#1B4F72" if v_ub >= 100.0 else "#000000")
+                    html_table += f'<td class="cell-center" style="font-weight: bold; background-color: {bg_ub}; color: {tx_ub};">{v_ub:.1f}%</td>'
+                    html_table += '</tr>'
+                    
+            html_table += "</tbody></table>"
+            st.markdown(html_table, unsafe_allow_html=True)
+
+        with tab_evolutivo:
+            st.markdown('<p class="graph-title">📈 Análisis de Tendencia de Productividad Anual</p>', unsafe_allow_html=True)
+
+            df_metrics_sem = df_master.groupby("Semana").agg({"Total_Ingresos": "sum", "Habilitadas": "sum", "Ubicadas": "sum", "Meta_Rec": "sum", "Real_Rec": "sum"}).reindex(semanas_disponibles)
+            df_metrics_sem['% Habilitado'] = (df_metrics_sem['Habilitadas'] / df_metrics_sem['Total_Ingresos'] * 100).fillna(0)
+            df_metrics_sem['% Recorridos'] = (df_metrics_sem['Real_Rec'] / df_metrics_sem['Meta_Rec'] * 100).fillna(0)
+
+            df_metrics_sem['Var_Ing_Abs'] = df_metrics_sem['Total_Ingresos'].diff()
+            df_metrics_sem['Var_Ing_Pct'] = df_metrics_sem['Total_Ingresos'].pct_change() * 100
+            df_metrics_sem['Var_Hab_Abs'] = df_metrics_sem['Habilitadas'].diff()
+            df_metrics_sem['Var_Hab_Pct'] = df_metrics_sem['Habilitadas'].pct_change() * 100
+            df_metrics_sem['Var_Delta_Recorridos'] = df_metrics_sem['% Recorridos'].diff()
+
+            html_comparativo = """
+            <table class="tabla-auditoria">
+                <tbody>
+                    <tr>
+                        <td>Dimensión Temporal</td><td>📥 Vol. Ingresos Total</td><td>Δ Vs. Sem Anterior</td>
+                        <td>✨ Piezas Habilitadas</td><td>Δ Vs. Sem Anterior</td>
+                        <td>🎯 % Rendimiento Recorridos</td><td>Δ Eficiencia Recorridos</td>
+                    </tr>
+            """
+
+            for idx, (sem, row) in enumerate(df_metrics_sem.iterrows()):
+                if idx == 0:
+                    delta_ing = '<span style="color:#7F7F7F; font-size:11px;">Línea Base</span>'
+                    delta_hab = '<span style="color:#7F7F7F; font-size:11px;">N/A</span>'
+                    delta_rec = '<span style="color:#7F7F7F; font-size:11px;">N/A</span>'
+                else:
+                    c_ing = "#E6007E" if row['Var_Ing_Abs'] < 0 else "#1F497D"
+                    signo_ing = "" if row['Var_Ing_Abs'] < 0 else "+"
+                    delta_ing = f'<b style="color:{c_ing};">{signo_ing}{int(row["Var_Ing_Abs"]):,} u. ({signo_ing}{row["Var_Ing_Pct"]:.1f}%)</b>'
+                    
+                    c_hab = "#E6007E" if row['Var_Hab_Abs'] < 0 else "#1F497D"
+                    signo_hab = "" if row['Var_Hab_Abs'] < 0 else "+"
+                    delta_hab = f'<b style="color:{c_hab};">{signo_hab}{int(row["Var_Hab_Abs"]):,} u. ({signo_hab}{row["Var_Hab_Pct"]:.1f}%)</b>'
+                    
+                    c_rec = "#E6007E" if row['Var_Delta_Recorridos'] < 0 else "#229954"
+                    signo_rec = "" if row['Var_Delta_Recorridos'] < 0 else "+"
+                    delta_rec = f'<span style="color:{c_rec}; font-weight:bold;">{signo_rec}{row["Var_Delta_Recorridos"]:.1f} pp</span>'
+
+                html_comparativo += f"""
+                <tr style="border-bottom: 1px solid #EFEFEF; height:38px;">
+                    <td class="cell-center" style="font-weight: bold; background-color: #F9FBFD; color: #1F497D;">{sem}</td>
+                    <td class="cell-td" style="font-weight: bold;">{int(row['Total_Ingresos']):,}</td>
+                    <td class="cell-center" style="font-size:12px;">{delta_ing}</td>
+                    <td class="cell-td" style="font-weight: bold;">{int(row['Habilitadas']):,} <small style="color:#555;">({row['% Habilitado']:.1f}%)</small></td>
+                    <td class="cell-center" style="font-size:12px;">{delta_hab}</td>
+                    <td class="cell-center" style="font-weight: bold;">{row['% Recorridos']:.1f}%</td>
+                    <td class="cell-center" style="font-size:12px;">{delta_rec}</td>
+                </tr>
+                """
+
+            html_comparativo += "</tbody></table>"
+            st.markdown(html_comparativo, unsafe_allow_html=True)
+
+            fig_trend = make_subplots(specs=[[{"secondary_y": True}]])
+            fig_trend.add_trace(go.Scatter(x=df_metrics_sem.index, y=df_metrics_sem['% Habilitado'], name="Evolución % Habilitado", mode='lines+markers+text', text=df_metrics_sem['% Habilitado'].map('{:.1f}%'.format), textposition="top center", line=dict(color='#1F497D', width=3)), secondary_y=False)
+            fig_trend.add_trace(go.Scatter(x=df_metrics_sem.index, y=df_metrics_sem['% Recorridos'], name="Evolución % Recorridos", mode='lines+markers+text', text=df_metrics_sem['% Recorridos'].map('{:.1f}%'.format), textposition="bottom center", line=dict(color='#E6007E', width=3, dash='dash')), secondary_y=False)
+            fig_trend.add_trace(go.Bar(x=df_metrics_sem.index, y=df_metrics_sem['Total_Ingresos'], name="Volumen Total Ingresos", marker_color='#7F7F7F', opacity=0.12), secondary_y=True)
+            fig_trend.update_layout(title="<b>Línea de Tendencia Histórica e Incremental</b>", plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+            st.plotly_chart(fig_trend, use_container_width=True)
+
+    else:
+        st.warning("No se encontraron registros válidos.")
+
+st.markdown("<br><p style='font-size:11px; color:#999999; text-align: center;'>REPORTES DE DIRECCIÓN DE OPERACIONES • PRICE SHOES ROPA • CONFIDENCIAL</p>", unsafe_allow_html=True)
