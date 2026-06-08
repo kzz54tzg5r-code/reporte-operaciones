@@ -38,15 +38,12 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =========================================================================
-# --- FUENTE DE DATOS OPERATIVOS EN LA NUBE (GOOGLE SHEETS MULTI-PESTAÑA) ---
+# --- FUENTE DE DATOS CONSOLIDADA MULTI-PESTAÑA ---
 # =========================================================================
 @st.cache_data(ttl=60)
 def get_operational_data():
     try:
-        # Tu ID de Google Sheets ya integrado
         ID_DOCUMENTO = "18jY8e9houYYTgX2TqWwS-clbzGAjbQzi4tjW7wOR2vI"
-        
-        # URL que fuerza a Google a exportar el archivo completo como un .xlsx tradicional
         URL_EXCEL_NUBE = f"https://docs.google.com/spreadsheets/d/{ID_DOCUMENTO}/export?format=xlsx"
         
         response = requests.get(URL_EXCEL_NUBE, timeout=30)
@@ -54,92 +51,119 @@ def get_operational_data():
         
         excel_bytes = io.BytesIO(response.content)
         
-        # Carga la pestaña específica de tu libro (Ajusta 'Checklist' si es necesario)
-        df = pd.read_excel(excel_bytes, sheet_name="Checklist", engine="openpyxl")
+        # Leemos todas las pestañas disponibles en el archivo
+        excel_file = pd.ExcelFile(excel_bytes, engine="openpyxl")
+        todas_las_pestanas = excel_file.sheet_names
         
-        if df.empty:
+        # Filtramos para quedarnos únicamente con las que empiezan con "Sem"
+        pestanas_semanas = [p for p in todas_las_pestanas if p.strip().lower().startswith("sem")]
+        
+        if not pestanas_semanas:
+            st.sidebar.error("No se encontraron pestañas que inicien con 'Sem' en el archivo.")
             return pd.DataFrame()
-
-        df.columns = df.columns.str.strip()
+            
+        lista_dataframes = []
         
-        df.rename(columns={
-            'Fecha s': 'Fecha_Corte',
-            'Ubicación': 'Tienda',
-            'Motivo de ingreso': 'Motivo_Ingreso',
-            'Número de Piezas': 'Piezas'
-        }, inplace=True)
-        
-        df['Fecha'] = pd.to_datetime(df['Fecha_Corte'], errors='coerce')
-        df = df.dropna(subset=['Fecha'])
-        
-        df['Piezas'] = pd.to_numeric(df['Piezas'], errors='coerce').fillna(0)
-        
-        df['Sis_Aduana'] = df.apply(lambda r: r['Piezas'] if str(r.get('Motivo_Ingreso', '')).strip() == 'Aduana' else 0, axis=1)
-        df['Muertos'] = df.apply(lambda r: r['Piezas'] if str(r.get('Motivo_Ingreso', '')).strip() == 'Muertos' else 0, axis=1)
-        df['Cajas'] = df.apply(lambda r: r['Piezas'] if str(r.get('Motivo_Ingreso', '')).strip() == 'Cajas' else 0, axis=1)
-        
-        df['Habilitadas'] = df.apply(lambda r: r['Piezas'] if 'habilitad' in str(r.get('Actividad Realizada', '')).lower() else 0, axis=1)
-        df['Ubicadas'] = df.apply(lambda r: r['Piezas'] if 'ubica' in str(r.get('Actividad Realizada', '')).lower() else 0, axis=1)
-        
-        df['Meta_Rec'] = 8.0  
-        df['Real_Rec'] = df.apply(lambda r: 1.0 if 'recorrido' in str(r.get('Tabla', '')).lower() else 0, axis=1)
-        
-        # Regla de negocio: Sumatoria total del ingreso
-        df['Total_Ingresos'] = df['Sis_Aduana'] + df['Muertos'] + df['Cajas']
-        
-        # Mapeo de días de la semana para ordenación limpia y sin duplicar fechas
-        dias_espanol = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
-        df['Dia_Semana_Num'] = df['Fecha'].dt.dayofweek
-        df['Dia_Nombre'] = df['Dia_Semana_Num'].map(dias_espanol)
-        
-        df['Semana'] = "Semana " + df['Fecha'].dt.isocalendar().week.astype(str)
-        df['Mes'] = df['Fecha'].dt.strftime('%B').replace({
+        # Mapeo de meses en español
+        meses_espanol = {
             'January': 'Enero', 'February': 'Febrero', 'March': 'Marzo', 'April': 'Abril',
             'May': 'Mayo', 'June': 'Junio', 'July': 'Julio', 'August': 'Agosto',
             'September': 'Septiembre', 'October': 'Octubre', 'November': 'Noviembre', 'December': 'Diciembre'
-        })
+        }
         
-        return df
+        # Iteramos y procesamos cada pestaña de semana
+        for nombre_pestana in pestanas_semanas:
+            # Saltamos la fila de encabezados decorativos superiores y leemos la matriz limpia
+            df_sem = pd.read_excel(excel_file, sheet_name=nombre_pestana, skiprows=1, engine="openpyxl")
+            
+            if df_sem.empty:
+                continue
+                
+            # Limpieza básica de nombres de columnas
+            df_sem.columns = df_sem.columns.str.strip()
+            
+            # Buscamos las columnas requeridas según la estructura de la imagen
+            renombres = {
+                'Tienda': 'Tienda',
+                'Ingreso Aduana (sistema)': 'Sis_Aduana',
+                'Ingresos Aduana': 'Ingresos_Aduana_Fis',
+                'Ingresos Muertos': 'Muertos',
+                'Ingresos Cajas': 'Cajas',
+                'Total ingresos': 'Total_Ingresos_Col',
+                'No. Recorridos meta': 'Meta_Rec',
+                'No. Recorridos realizados': 'Real_Rec',
+                'Pzas Habilitadas': 'Habilitadas',
+                'Pzas Ubicadas': 'Ubicadas'
+            }
+            
+            # Filtrar columnas existentes en la hoja actual para evitar ValueErrors si hay variaciones
+            columnas_a_renombrar = {k: v for k, v in renombres.items() if k in df_sem.columns}
+            df_sem.rename(columns=columnas_a_renombrar, inplace=True)
+            
+            # Forzar tipos de datos numéricos en métricas críticas
+            columnas_numericas = ['Sis_Aduana', 'Muertos', 'Cajas', 'Habilitadas', 'Ubicadas', 'Meta_Rec', 'Real_Rec']
+            for col in columnas_numericas:
+                if col in df_sem.columns:
+                    df_sem[col] = pd.to_numeric(df_sem[col], errors='coerce').fillna(0)
+                else:
+                    df_sem[col] = 0
+            
+            # Descartar filas vacías, totales generales del excel o filas de separación
+            df_sem = df_sem[df_sem['Tienda'].notna()]
+            df_sem = df_sem[~df_sem['Tienda'].str.contains('total|resumen|fecha', case=False, na=False)]
+            
+            # Asignación de la dimensión temporal basada en la pestaña actual
+            df_sem['Semana'] = nombre_pestana.strip()
+            
+            # Para el mes e histórico, si no viene la columna fecha fija por fila, asignamos un estimado base
+            # (Puedes cambiar la lógica de fecha si agregas una columna limpia de fecha por fila)
+            df_sem['Mes'] = "Mayo"  # Valor base de inicio según la imagen (Sem 20 - 4 de Mayo)
+            
+            # Regla de negocio: total de ingresos calculados por fórmula operativa
+            df_sem['Total_Ingresos'] = df_sem['Sis_Aduana'] + df_sem['Muertos'] + df_sem['Cajas']
+            
+            lista_dataframes.append(df_sem)
+            
+        if not lista_dataframes:
+            return pd.DataFrame()
+            
+        # Unificamos todas las semanas en un único DataFrame Maestro
+        df_consolidado = pd.concat(lista_dataframes, ignore_index=True)
+        return df_consolidado
         
     except Exception as e:
-        st.sidebar.error(f"Error en la lectura de la nube: {e}")
+        st.sidebar.error(f"Error consolidando pestañas: {e}")
         return pd.DataFrame()
 
 # --- HEADER GENERAL DEL CONTROL DE OPERACIONES ---
 st.markdown('<p class="main-title">👚 PRICE SHOES • Operaciones Ropa</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">CONTROL DE OPERACIONES ROPA</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">CONTROL DE OPERACIONES ROPA • MATRIZ MULTI-SEMANAL</p>', unsafe_allow_html=True)
 st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
 
 df_master = get_operational_data()
 
 if df_master.empty:
-    st.warning("⚠️ Cargando datos desde Google Sheets... Si el error persiste, comprueba que el archivo esté compartido en modo 'Cualquier persona con el enlace'.")
+    st.warning("⚠️ Extrayendo y unificando las pestañas semanales... Comprueba que las hojas mantengan el prefijo 'Sem ' en Google Sheets.")
 else:
     # =========================================================================
     # --- FILTROS LATERALES (SIDEBAR) ---
     # =========================================================================
     st.sidebar.markdown("### 🎛️ Filtros de Operación")
-    tipo_periodo = st.sidebar.radio("Agrupar Reporte por:", ["Por Semana", "Por Mes"])
-
-    if tipo_periodo == "Por Semana":
-        semanas_disponibles = sorted(list(df_master['Semana'].unique()))
-        periodo_seleccionado = st.sidebar.selectbox("Selecciona la Semana Operativa:", semanas_disponibles)
-        df_filtrado_periodo = df_master[df_master['Semana'] == periodo_seleccionado]
-        label_corte = f"({periodo_seleccionado.upper()})"
+    
+    # Selector de periodos dinámico basado en las pestañas reales que vayas agregando
+    semanas_disponibles = sorted(list(df_master['Semana'].unique()))
+    periodo_seleccionado = st.sidebar.selectbox("Selecciona la Semana Operativa:", ["Ver Histórico Conectado"] + semanas_disponibles)
+    
+    if periodo_seleccionado == "Ver Histórico Conectado":
+        df_filtered = df_master.copy()
+        label_corte = "(CONSOLIDADO HISTÓRICO)"
     else:
-        meses_disponibles = sorted(list(df_master['Mes'].unique()))
-        periodo_seleccionado = st.sidebar.selectbox("Selecciona el Mes Operativo:", ["Todos los Meses"] + meses_disponibles)
-        if periodo_seleccionado == "Todos los Meses":
-            df_filtrado_periodo = df_master.copy()
-            label_corte = "(HISTÓRICO CONSOLIDADO)"
-        else:
-            df_filtrado_periodo = df_master[df_master['Mes'] == periodo_seleccionado]
-            label_corte = f"(MES DE {periodo_seleccionado.upper()})"
+        df_filtered = df_master[df_master['Semana'] == periodo_seleccionado]
+        label_corte = f"({periodo_seleccionado.upper()})"
 
     tiendas_disponibles = sorted(list(df_master['Tienda'].dropna().unique()))
     tienda = st.sidebar.selectbox("Sucursal / Almacén Ropa", ["Todas las Tiendas"] + tiendas_disponibles)
 
-    df_filtered = df_filtrado_periodo.copy()
     if tienda != "Todas las Tiendas":
         df_filtered = df_filtered[df_filtered['Tienda'] == tienda]
 
@@ -148,12 +172,13 @@ else:
     # =========================================================================
     if not df_filtered.empty:
         
-        st.markdown('<p style="color: #555555; font-weight: bold; font-size: 14px; margin-bottom: 10px; letter-spacing: 0.5px;">📋 DESGLOSE COMPARATIVO HISTÓRICO (ÚLTIMAS 4 SEMANAS)</p>', unsafe_allow_html=True)
+        st.markdown('<p style="color: #555555; font-weight: bold; font-size: 14px; margin-bottom: 10px; letter-spacing: 0.5px;">📋 DESGLOSE COMPARATIVO INTERSEMANAL DE CONTROL</p>', unsafe_allow_html=True)
         
-        ultimas_4_semanas = sorted(list(df_master['Semana'].unique()))[-4:]
-        cols_semanas = st.columns(len(ultimas_4_semanas))
+        # Mostramos las últimas 4 semanas agregadas en tarjetas ejecutivas de KPI
+        ultimas_semanas_bloque = semanas_disponibles[-4:]
+        cols_semanas = st.columns(len(ultimas_semanas_bloque))
         
-        for i, sem in enumerate(ultimas_4_semanas):
+        for i, sem in enumerate(ultimas_semanas_bloque):
             df_sem = df_master[df_master['Semana'] == sem].copy()
             if tienda != "Todas las Tiendas":
                 df_sem = df_sem[df_sem['Tienda'] == tienda]
@@ -181,7 +206,7 @@ else:
         with tab_auditoria:
             st.markdown(f'<p class="graph-title">📊 Gráficos de Distribución Operativa por Sucursal {label_corte}</p>', unsafe_allow_html=True)
             col_g1, col_g2 = st.columns(2)
-            eje_x_dinamico = "Tienda" if tienda == "Todas las Tiendas" else ("Semana" if tipo_periodo == "Por Semana" else "Dia_Nombre")
+            eje_x_dinamico = "Semana" if periodo_seleccionado == "Ver Histórico Conectado" else "Tienda"
 
             with col_g1:
                 df_g1 = df_filtered.groupby(eje_x_dinamico, as_index=False)[["Sis_Aduana", "Muertos", "Cajas"]].sum()
@@ -190,58 +215,42 @@ else:
                 pct_sis = (df_g1["Sis_Aduana"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format).tolist()
                 pct_mue = (df_g1["Muertos"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format).tolist()
                 pct_caj = (df_g1["Cajas"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format).tolist()
-                
-                if eje_x_dinamico == "Dia_Nombre":
-                    orden_dias = {"Lunes":0, "Martes":1, "Miércoles":2, "Jueves":3, "Viernes":4, "Sábado":5, "Domingo":6}
-                    df_g1['orden'] = df_g1['Dia_Nombre'].map(orden_dias)
-                    df_g1 = df_g1.sort_values('orden').drop(columns=['orden'])
 
                 fig1 = go.Figure()
-                fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Sis_Aduana"], name="Sis_Aduana", marker_color='#1F497D', text=pct_sis, textposition='inside'))
+                fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Sis_Aduana"], name="Aduana Sistema", marker_color='#1F497D', text=pct_sis, textposition='inside'))
                 fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Muertos"], name="Muertos", marker_color='#E6007E', text=pct_mue, textposition='inside'))
                 fig1.add_trace(go.Bar(x=df_g1[eje_x_dinamico], y=df_g1["Cajas"], name="Cajas", marker_color='#7F7F7F', text=pct_caj, textposition='inside'))
-                fig1.update_layout(title="<b>Distribución y % de Composición de Ingresos</b>", barmode='stack', barnorm='percent', plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
+                fig1.update_layout(title="<b>Composición Porcentual de Ingresos por Tipo</b>", barmode='stack', barnorm='percent', plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
                 st.plotly_chart(fig1, use_container_width=True)
 
             with col_g2:
-                if eje_x_dinamico in ["Semana", "Tienda"]:
-                    df_g2 = df_filtered.groupby(eje_x_dinamico, as_index=False).agg(Total_Ingresos=('Total_Ingresos', 'sum'), Habilitadas=('Habilitadas', 'sum'))
-                else:
-                    df_g2 = df_filtered.groupby(["Dia_Semana_Num", "Dia_Nombre"], as_index=False).agg(Total_Ingresos=('Total_Ingresos', 'sum'), Habilitadas=('Habilitadas', 'sum')).sort_values("Dia_Semana_Num")
-
+                df_g2 = df_filtered.groupby(eje_x_dinamico, as_index=False).agg(Total_Ingresos=('Total_Ingresos', 'sum'), Habilitadas=('Habilitadas', 'sum'))
                 df_g2['Porcentaje_Habilitado'] = (df_g2['Habilitadas'] / df_g2['Total_Ingresos'] * 100).fillna(0)
                 
                 fig2 = make_subplots(specs=[[{"secondary_y": True}]])
                 fig2.add_trace(go.Bar(x=df_g2[eje_x_dinamico], y=df_g2['Porcentaje_Habilitado'], name="% Habilitado", marker_color='#1F497D', text=df_g2['Porcentaje_Habilitado'].map('{:.1f}%'.format), textposition='inside'), secondary_y=False)
                 fig2.add_trace(go.Scatter(x=df_g2[eje_x_dinamico], y=df_g2['Total_Ingresos'], name="Total Ingresos", mode='lines+markers', line=dict(color='#E6007E', width=3)), secondary_y=True)
-                fig2.update_layout(title_text="<b>Rendimiento: % Habilitado vs Volumen</b>", plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
+                fig2.update_layout(title_text="<b>Rendimiento Operativo: % Habilitado vs Volumen Total</b>", plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
                 st.plotly_chart(fig2, use_container_width=True)
 
-            st.markdown(f'<p class="graph-title">🔍 Matriz General de Auditoría Operativa {label_corte}</p>', unsafe_allow_html=True)
+            st.markdown(f'<p class="graph-title">🔍 Matriz General de Auditoría Unificada {label_corte}</p>', unsafe_allow_html=True)
 
             html_table = """
             <table class="tabla-auditoria">
                 <tbody>
                     <tr>
-                        <td>Clasificación</td><td>Tienda</td><td>Aduana Sist.</td><td>Aduana Fís.</td>
+                        <td>Clasificación</td><td>Tienda</td><td>Aduana Sist.</td>
                         <td>Muertos</td><td>Cajas</td><td>Total Ingresos</td><td>Piezas Habilitadas</td>
                         <td>% Recorridos</td><td>% Habilitado</td><td>Ubicado %</td>
                     </tr>
             """
             
-            agrupadores = ["Semana", "Tienda"] if (tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses") else ["Dia_Nombre", "Dia_Semana_Num", "Tienda"]
-            df_table = df_filtered.groupby(agrupadores, as_index=False).agg({
+            df_table = df_filtered.groupby(["Semana", "Tienda"], as_index=False).agg({
                 "Sis_Aduana": "sum", "Muertos": "sum", "Cajas": "sum",
                 "Total_Ingresos": "sum", "Habilitadas": "sum", "Ubicadas": "sum", "Meta_Rec": "sum", "Real_Rec": "sum"
-            })
-            df_table["Fis_Aduana"] = 0
+            }).sort_values(by=["Semana", "Tienda"])
             
-            if tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses":
-                df_table = df_table.sort_values(by=["Semana", "Tienda"])
-                grouped_matrix = df_table.groupby("Semana", sort=False)
-            else:
-                df_table = df_table.sort_values(by=["Dia_Semana_Num", "Tienda"])
-                grouped_matrix = df_table.groupby("Dia_Nombre", sort=False)
+            grouped_matrix = df_table.groupby("Semana", sort=False)
             
             for bloque_id, sub_grupo in grouped_matrix:
                 limite_filas = len(sub_grupo)
@@ -256,7 +265,6 @@ else:
                     tot_ing = row["Total_Ingresos"]
                     html_table += f'<td class="cell-center" style="font-weight: bold;">{row["Tienda"]}</td>'
                     html_table += f'<td class="cell-td">{int(row["Sis_Aduana"]):,}</td>'
-                    html_table += f'<td class="cell-td">{int(row["Fis_Aduana"]):,}</td>'
                     html_table += f'<td class="cell-td">{int(row["Muertos"]):,}</td>'
                     html_table += f'<td class="cell-td">{int(row["Cajas"]):,}</td>'
                     html_table += f'<td class="cell-td" style="font-weight: bold; background-color: #F9F9F9;">{int(tot_ing):,}</td>'
@@ -282,13 +290,9 @@ else:
             st.markdown(html_table, unsafe_allow_html=True)
 
         with tab_evolutivo:
-            st.markdown('<p class="graph-title">📈 Análisis de Tendencia y Variación Intersemanal</p>', unsafe_allow_html=True)
+            st.markdown('<p class="graph-title">📈 Análisis de Tendencia de Productividad Anual</p>', unsafe_allow_html=True)
 
-            df_evolutivo = df_master[df_master['Semana'].isin(ultimas_4_semanas)].copy()
-            if tienda != "Todas las Tiendas":
-                df_evolutivo = df_evolutivo[df_evolutivo['Tienda'] == tienda]
-
-            df_metrics_sem = df_evolutivo.groupby("Semana").agg({"Total_Ingresos": "sum", "Habilitadas": "sum", "Ubicadas": "sum", "Meta_Rec": "sum", "Real_Rec": "sum"}).reindex(ultimas_4_semanas)
+            df_metrics_sem = df_master.groupby("Semana").agg({"Total_Ingresos": "sum", "Habilitadas": "sum", "Ubicadas": "sum", "Meta_Rec": "sum", "Real_Rec": "sum"}).reindex(semanas_disponibles)
             df_metrics_sem['% Habilitado'] = (df_metrics_sem['Habilitadas'] / df_metrics_sem['Total_Ingresos'] * 100).fillna(0)
             df_metrics_sem['% Recorridos'] = (df_metrics_sem['Real_Rec'] / df_metrics_sem['Meta_Rec'] * 100).fillna(0)
 
@@ -310,7 +314,7 @@ else:
 
             for idx, (sem, row) in enumerate(df_metrics_sem.iterrows()):
                 if idx == 0:
-                    delta_ing = '<span style="color:#7F7F7F; font-size:11px;">N/A (Línea Base)</span>'
+                    delta_ing = '<span style="color:#7F7F7F; font-size:11px;">Línea Base</span>'
                     delta_hab = '<span style="color:#7F7F7F; font-size:11px;">N/A</span>'
                     delta_rec = '<span style="color:#7F7F7F; font-size:11px;">N/A</span>'
                 else:
@@ -345,10 +349,10 @@ else:
             fig_trend.add_trace(go.Scatter(x=df_metrics_sem.index, y=df_metrics_sem['% Habilitado'], name="Evolución % Habilitado", mode='lines+markers+text', text=df_metrics_sem['% Habilitado'].map('{:.1f}%'.format), textposition="top center", line=dict(color='#1F497D', width=3)), secondary_y=False)
             fig_trend.add_trace(go.Scatter(x=df_metrics_sem.index, y=df_metrics_sem['% Recorridos'], name="Evolución % Recorridos", mode='lines+markers+text', text=df_metrics_sem['% Recorridos'].map('{:.1f}%'.format), textposition="bottom center", line=dict(color='#E6007E', width=3, dash='dash')), secondary_y=False)
             fig_trend.add_trace(go.Bar(x=df_metrics_sem.index, y=df_metrics_sem['Total_Ingresos'], name="Volumen Total Ingresos", marker_color='#7F7F7F', opacity=0.12), secondary_y=True)
-            fig_trend.update_layout(title="<b>Línea de Tendencia: Desempeño Operativo vs Volumen de Entrada</b>", plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+            fig_trend.update_layout(title="<b>Línea de Tendencia Histórica e Incremental</b>", plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20), legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
             st.plotly_chart(fig_trend, use_container_width=True)
 
     else:
-        st.warning("No se encontraron registros con los filtros aplicados.")
+        st.warning("No se encontraron registros válidos.")
 
 st.markdown("<br><p style='font-size:11px; color:#999999; text-align: center;'>REPORTES DE DIRECCIÓN DE OPERACIONES • PRICE SHOES ROPA • CONFIDENCIAL</p>", unsafe_allow_html=True)
