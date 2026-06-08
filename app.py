@@ -142,3 +142,103 @@ if df_semanal is not None:
     fig_ingresos.update_traces(
         texttemplate='<b>%{text:,}</b>', 
         textposition='outside'
+    )
+    fig_ingresos.update_layout(
+        margin=dict(l=20, r=20, t=50, b=20),
+        xaxis_title="Tiendas",
+        yaxis_title="Cantidad de Piezas",
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(family="Segoe UI", size=12)
+    )
+    st.plotly_chart(fig_ingresos, use_container_width=True)
+
+    st.markdown(" ")
+
+    # Gráfico 2: Eficiencia del Recorrido vs % Habilitado por Tienda
+    df_semanal['Eficiencia Recorrido (%)'] = (df_semanal['No. Recorridos realizados'] / df_semanal['No. Recorridos meta'] * 100).round(1)
+    df_semanal['% Habilitado'] = (df_semanal['Pzas Habilitadas'] / df_semanal['Pzas Recolectadas'] * 100).fillna(0).round(1)
+    
+    fig_kpis = go.Figure()
+    fig_kpis.add_trace(go.Bar(
+        x=df_semanal['Tienda'],
+        y=df_semanal['Eficiencia Recorrido (%)'],
+        name='Eficiencia del Recorrido (%)',
+        text=df_semanal['Eficiencia Recorrido (%)'],
+        texttemplate='<b>%{text}%</b>',
+        textposition='outside',
+        marker_color='#2563eb'
+    ))
+    fig_kpis.add_trace(go.Bar(
+        x=df_semanal['Tienda'],
+        y=df_semanal['% Habilitado'],
+        name='% Habilitado',
+        text=df_semanal['% Habilitado'],
+        texttemplate='<b>%{text}%</b>',
+        textposition='outside',
+        marker_color='#475569' # Gris corporativo
+    ))
+    
+    fig_kpis.update_layout(
+        barmode='group',
+        title="<b>Comparativa: Eficiencia de Recorridos Meta vs % de Producto Habilitado</b>",
+        margin=dict(l=20, r=20, t=50, b=20),
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(family="Segoe UI", size=12),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    st.plotly_chart(fig_kpis, use_container_width=True)
+
+st.markdown("---")
+
+# -----------------------------------------------------------------------------
+# Sección 3: Análisis de Checklist agrupado por Día de la Semana
+# -----------------------------------------------------------------------------
+st.subheader("📅 Productividad y Registros por Día de la Semana")
+st.markdown("Agrupación optimizada por días (Lunes a Domingo) para evitar repeticiones visuales de fechas.")
+
+if df_checklist is not None:
+    # Agrupación por Día de la Semana y Ubicación/Tienda sumando el Número de Piezas
+    df_agrupado = df_checklist.groupby(['Día Semana', 'Ubicación'], observed=False)['Número de Piezas'].sum().reset_index()
+    
+    # Filtro dinámico en barra lateral para explorar los días
+    dias_disponibles = ['Todos'] + list(df_agrupado['Día Semana'].unique())
+    dia_seleccionado = st.sidebar.selectbox("Filtrar Análisis por Día:", dias_disponibles)
+    
+    if dia_seleccionado != 'Todos':
+        df_agrupado = df_agrupado[df_agrupado['Día Semana'] == dia_seleccionado]
+        
+    # Gráfico de Líneas o Barras acumuladas por Día
+    fig_checklist = px.bar(
+        df_agrupado,
+        x='Día Semana',
+        y='Número de Piezas',
+        color='Ubicación',
+        title="<b>Piezas Procesadas según Registro de Checklist (Agrupado por Día)</b>",
+        text='Número de Piezas',
+        barmode='group',
+        color_discrete_sequence=['#1e3a8a', '#3b82f6', '#64748b', '#94a3b8']
+    )
+    
+    fig_checklist.update_traces(
+        texttemplate='<b>%{text:,}</b>',
+        textposition='outside'
+    )
+    fig_checklist.update_layout(
+        margin=dict(l=20, r=20, t=50, b=20),
+        xaxis_title="Día de la Semana",
+        yaxis_title="Cantidad de Piezas Registradas",
+        plot_bgcolor='rgba(0,0,0,0)',
+        paper_bgcolor='rgba(0,0,0,0)',
+        font=dict(family="Segoe UI", size=12)
+    )
+    
+    st.plotly_chart(fig_checklist, use_container_width=True)
+    
+    # Tabla resumen estilo Matriz Ejecutiva
+    st.markdown("### 📋 Matriz Resumen de Piezas Procesadas")
+    df_matriz = df_agrupado.pivot(index='Ubicación', columns='Día Semana', values='Número de Piezas').fillna(0).astype(int)
+    st.dataframe(df_matriz, use_container_width=True)
+else:
+    st.info("Sube o vincula el archivo de checklist final para desplegar el análisis de días de la semana.")
