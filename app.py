@@ -43,8 +43,8 @@ st.markdown("""
 @st.cache_data(ttl=300)
 def get_operational_data():
     try:
-        # URL armada correctamente con tu ID público
-        URL_ONEDRIVE = "https://onedrive.live.com/download?resid=11b83163-6E2D-4B29-A4C2-9D0A3BB17B97"
+        # Enlace de inserción definitivo estructurado correctamente con tu Token de Acceso Público
+        URL_ONEDRIVE = "https://onedrive.live.com/download?resid=c0f50b99d16ea810&authkey=IQRjMbgRLW4pS6TCnQo7sXuXAfM3rZYeg12V3kjNI2y60cw"
         
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36",
@@ -54,18 +54,23 @@ def get_operational_data():
         response = requests.get(URL_ONEDRIVE, headers=headers, timeout=30)
         response.raise_for_status()
         
+        # Filtro de seguridad por si Microsoft responde con HTML de inicio de sesión
         if b"<html" in response.content.lower() or b"<!doctype html" in response.content.lower():
-            st.sidebar.error("⚠️ OneDrive devolvió una página web. Verifica que el enlace siga público.")
+            st.sidebar.error("⚠️ OneDrive devolvió una página web en lugar del archivo Excel. Verifica los permisos del enlace.")
             return pd.DataFrame()
             
         excel_bytes = io.BytesIO(response.content)
+        
+        # Lectura directa de la pestaña Checklist usando openpyxl
         df = pd.read_excel(excel_bytes, sheet_name="Checklist", engine="openpyxl")
         
         if df.empty:
             return pd.DataFrame()
 
+        # Limpieza de espacios en blanco en los nombres de las columnas
         df.columns = df.columns.str.strip()
         
+        # Homologación de columnas
         df.rename(columns={
             'Fecha s': 'Fecha_Corte',
             'Ubicación': 'Tienda',
@@ -73,23 +78,29 @@ def get_operational_data():
             'Número de Piezas': 'Piezas'
         }, inplace=True)
         
+        # Formatear fechas de manera segura
         df['Fecha'] = pd.to_datetime(df['Fecha_Corte'], errors='coerce')
         df = df.dropna(subset=['Fecha'])
         
         df['Piezas'] = pd.to_numeric(df['Piezas'], errors='coerce').fillna(0)
         
+        # Separación por Motivos de Ingreso
         df['Sis_Aduana'] = df.apply(lambda r: r['Piezas'] if str(r.get('Motivo_Ingreso', '')).strip() == 'Aduana' else 0, axis=1)
         df['Muertos'] = df.apply(lambda r: r['Piezas'] if str(r.get('Motivo_Ingreso', '')).strip() == 'Muertos' else 0, axis=1)
         df['Cajas'] = df.apply(lambda r: r['Piezas'] if str(r.get('Motivo_Ingreso', '')).strip() == 'Cajas' else 0, axis=1)
         
+        # Conteo de Actividades Realizadas
         df['Habilitadas'] = df.apply(lambda r: r['Piezas'] if 'habilitad' in str(r.get('Actividad Realizada', '')).lower() else 0, axis=1)
         df['Ubicadas'] = df.apply(lambda r: r['Piezas'] if 'ubica' in str(r.get('Actividad Realizada', '')).lower() else 0, axis=1)
         
+        # Lógica de cálculo de eficiencia de recorridos
         df['Meta_Rec'] = 8.0  
         df['Real_Rec'] = df.apply(lambda r: 1.0 if 'recorrido' in str(r.get('Tabla', '')).lower() else 0, axis=1)
         
+        # Cálculo de ingresos totales: aduana sistema + muertos + cajas
         df['Total_Ingresos'] = df['Sis_Aduana'] + df['Muertos'] + df['Cajas']
         
+        # Mapeo y agrupación por nombres de día de la semana para evitar fechas repetitivas
         dias_espanol = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
         df['Dia_Semana_Num'] = df['Fecha'].dt.dayofweek
         df['Dia_Nombre'] = df['Dia_Semana_Num'].map(dias_espanol)
@@ -107,11 +118,12 @@ def get_operational_data():
         st.sidebar.error(f"Error en la lectura de la nube: {e}")
         return pd.DataFrame()
 
-# --- MARCA CORPORATIVA GENERAL ---
+# --- ENCABEZADOS CORPORATIVOS ---
 st.markdown('<p class="main-title">👚 PRICE SHOES • Operaciones Ropa</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-title">CONTROL DE OPERACIONES ROPA</p>', unsafe_allow_html=True)
 st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
 
+# Carga de la matriz maestra
 df_master = get_operational_data()
 
 if df_master.empty:
@@ -150,6 +162,7 @@ else:
     # =========================================================================
     if not df_filtered.empty:
         
+        # --- BLOQUE 1: DESGLOSE COMPARATIVO HISTÓRICO (ÚLTIMAS 4 SEMANAS) ---
         st.markdown('<p style="color: #555555; font-weight: bold; font-size: 14px; margin-bottom: 10px; letter-spacing: 0.5px;">📋 DESGLOSE COMPARATIVO HISTÓRICO (ÚLTIMAS 4 SEMANAS)</p>', unsafe_allow_html=True)
         
         ultimas_4_semanas = sorted(list(df_master['Semana'].unique()))[-4:]
@@ -178,6 +191,7 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
+        # --- SECCIONES MEDIANTE PESTAÑAS (TABS) ---
         tab_auditoria, tab_evolutivo = st.tabs(["🔍 Matriz Operativa de Auditoría", "📈 Reporte de Evolución Intersemanal"])
 
         with tab_auditoria:
@@ -219,6 +233,7 @@ else:
                 fig2.update_layout(title_text="<b>Rendimiento: % Habilitado vs Volumen</b>", plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
                 st.plotly_chart(fig2, use_container_width=True)
 
+            # --- MATRIZ DE AUDITORÍA EN HTML ---
             st.markdown(f'<p class="graph-title">🔍 Matriz General de Auditoría Operativa {label_corte}</p>', unsafe_allow_html=True)
 
             html_table = """
@@ -343,6 +358,7 @@ else:
             html_comparativo += "</tbody></table>"
             st.markdown(html_comparativo, unsafe_allow_html=True)
 
+            # Gráfico de Tendencias full-width
             fig_trend = make_subplots(specs=[[{"secondary_y": True}]])
             fig_trend.add_trace(go.Scatter(x=df_metrics_sem.index, y=df_metrics_sem['% Habilitado'], name="Evolución % Habilitado", mode='lines+markers+text', text=df_metrics_sem['% Habilitado'].map('{:.1f}%'.format), textposition="top center", line=dict(color='#1F497D', width=3)), secondary_y=False)
             fig_trend.add_trace(go.Scatter(x=df_metrics_sem.index, y=df_metrics_sem['% Recorridos'], name="Evolución % Recorridos", mode='lines+markers+text', text=df_metrics_sem['% Recorridos'].map('{:.1f}%'.format), textposition="bottom center", line=dict(color='#E6007E', width=3, dash='dash')), secondary_y=False)
