@@ -40,10 +40,10 @@ st.markdown("""
 # =========================================================================
 # --- FUENTE DE DATOS OPERATIVOS EN LA NUBE (ONEDRIVE PERSONAL) ---
 # =========================================================================
-@st.cache_data(ttl=300)  # Bajamos a 5 minutos el caché para asegurar pruebas rápidas
+@st.cache_data(ttl=300)  # El caché se actualizará automáticamente cada 5 minutos
 def get_operational_data():
     try:
-        # URL de descarga forzada del binario original de Excel
+        # Enlace de descarga directa del binario limpio
         URL_ONEDRIVE = "https://onedrive.live.com/download?resid=11B83163-6E2D-4B29-A4C2-9D0A3BB17B97"
         
         headers = {
@@ -51,20 +51,21 @@ def get_operational_data():
             "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, */*"
         }
         
-        response = requests.get(URL_ONEDRIVE, headers=headers, timeout=30)
+        # 1. Descarga del flujo binario crudo desde la nube
+        response = requests.get(URL_ONEDRIVE, headers=headers, timeout=25)
         response.raise_for_status()
         excel_bytes = io.BytesIO(response.content)
         
-        # Lectura directa apuntando explícitamente a la pestaña transaccional
+        # 2. Lectura directa forzando el motor openpyxl para la pestaña transaccional
         df = pd.read_excel(excel_bytes, sheet_name="Checklist", engine="openpyxl")
         
         if df.empty:
             return pd.DataFrame()
 
-        # Limpiar espacios fantasmas en los encabezados (Solución al error oculto de "Fecha ")
+        # --- LIMPIEZA DE ESPACIOS OCULTOS EN ENCABEZADOS ---
         df.columns = df.columns.str.strip()
         
-        # Homologación estricta de nombres según tu formulario real
+        # --- RE-MAPEO DE COLUMNAS SEGÚN TU EXCEL REAL ---
         df.rename(columns={
             'Fecha s': 'Fecha_Corte',
             'Ubicación': 'Tienda',
@@ -72,122 +73,28 @@ def get_operational_data():
             'Número de Piezas': 'Piezas'
         }, inplace=True)
         
-        # Validación y parsing de fechas seguras
+        # 3. Validar la columna de tiempo (usamos la fecha de registro limpia)
         df['Fecha'] = pd.to_datetime(df['Fecha_Corte'], errors='coerce')
         df = df.dropna(subset=['Fecha'])
         
-        # Asegurar tipo numérico en el conteo de ropa
+        # 4. Forzar que las piezas sean numéricas puras (evita caídas por celdas vacías)
         df['Piezas'] = pd.to_numeric(df['Piezas'], errors='coerce').fillna(0)
         
-        # --- PROCESAMIENTO OPERATIVO DE FILAS (PIVOTACIÓN EN CALIENTE) ---
+        # 5. Pivotación Dinámica: Mapear filas según las reglas de tu negocio de ropa
         df['Sis_Aduana'] = df.apply(lambda r: r['Piezas'] if str(r.get('Motivo_Ingreso', '')).strip() == 'Aduana' else 0, axis=1)
         df['Muertos'] = df.apply(lambda r: r['Piezas'] if str(r.get('Motivo_Ingreso', '')).strip() == 'Muertos' else 0, axis=1)
         df['Cajas'] = df.apply(lambda r: r['Piezas'] if str(r.get('Motivo_Ingreso', '')).strip() == 'Cajas' else 0, axis=1)
         
-        # Búsqueda parcial de actividades para blindar si escriben "habilitada" o "Habilitadas"
+        # Búsqueda parcial e insensible a mayúsculas para las actividades realizadas
         df['Habilitadas'] = df.apply(lambda r: r['Piezas'] if 'habilitad' in str(r.get('Actividad Realizada', '')).lower() else 0, axis=1)
         df['Ubicadas'] = df.apply(lambda r: r['Piezas'] if 'ubica' in str(r.get('Actividad Realizada', '')).lower() else 0, axis=1)
         
-        # Recorridos
+        # Control de recorridos de validación por sucursal
         df['Meta_Rec'] = 8.0  
         df['Real_Rec'] = df.apply(lambda r: 1.0 if 'recorrido' in str(r.get('Tabla', '')).lower() else 0, axis=1)
         
-        # Regla mandataria: Ingreso total es la suma de aduana sistema, muertos y cajas
+        # Regla de negocio: El ingreso total consolida sistema, muertos y cajas
         df['Total_Ingresos'] = df['Sis_Aduana'] + df['Muertos'] + df['Cajas']
         
-        # Agrupación por días de la semana (Lunes, Martes...)
-        dias_espanol = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
-        df['Dia_Semana_Num'] = df['Fecha'].dt.dayofweek
-        df['Dia_Nombre'] = df['Dia_Semana_Num'].map(dias_espanol)
-        
-        # Marcadores temporales
-        df['Semana'] = "Semana " + df['Fecha'].dt.isocalendar().week.astype(str)
-        df['Mes'] = df['Fecha'].dt.strftime('%B').replace({
-            'January': 'Enero', 'February': 'Febrero', 'March': 'Marzo', 'April': 'Abril',
-            'May': 'Mayo', 'June': 'Junio', 'July': 'Julio', 'August': 'Agosto',
-            'September': 'Septiembre', 'October': 'Octubre', 'November': 'Noviembre', 'December': 'Diciembre'
-        })
-        
-        return df
-    except Exception as e:
-        # Almacenamos el error en un contenedor controlado para que no rompa la pantalla completa
-        st.sidebar.error(f"Error interno en base de datos: {e}")
-        return pd.DataFrame()
-
-# --- MARCA CORPORATIVA GENERAL ---
-st.markdown('<p class="main-title">👚 PRICE SHOES • Operaciones Ropa</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-title">CONTROL DE OPERACIONES ROPA</p>', unsafe_allow_html=True)
-st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
-
-# Inicialización segura de la matriz de la nube
-df_master = get_operational_data()
-
-# --- VALIDACIÓN CRÍTICA PARA EVITAR LA PANTALLA BLANCA ---
-if df_master.empty:
-    st.warning("⚠️ No se pudieron procesar los datos de la pestaña 'Checklist' de OneDrive.")
-    st.info("💡 Por favor, verifica que las columnas de la hoja se llamen exactamente: 'Fecha s', 'Ubicación', 'Motivo de ingreso', 'Número de Piezas', 'Actividad Realizada' y 'Tabla'.")
-else:
-    # =========================================================================
-    # --- FILTROS LATERALES (SIDEBAR) ---
-    # =========================================================================
-    st.sidebar.markdown("### 🎛️ Filtros de Operación")
-    tipo_periodo = st.sidebar.radio("Agrupar Reporte por:", ["Por Semana", "Por Mes"])
-
-    if tipo_periodo == "Por Semana":
-        semanas_disponibles = sorted(list(df_master['Semana'].unique()))
-        periodo_seleccionado = st.sidebar.selectbox("Selecciona la Semana Operativa:", semanas_disponibles)
-        df_filtrado_periodo = df_master[df_master['Semana'] == periodo_seleccionado]
-        label_corte = f"({periodo_seleccionado.upper()})"
-    else:
-        meses_disponibles = sorted(list(df_master['Mes'].unique()))
-        periodo_seleccionado = st.sidebar.selectbox("Selecciona el Mes Operativo:", ["Todos los Meses"] + meses_disponibles)
-        if periodo_seleccionado == "Todos los Meses":
-            df_filtrado_periodo = df_master.copy()
-            label_corte = "(HISTÓRICO CONSOLIDADO)"
-        else:
-            df_filtrado_periodo = df_master[df_master['Mes'] == periodo_seleccionado]
-            label_corte = f"(MES DE {periodo_seleccionado.upper()})"
-
-    tiendas_disponibles = sorted(list(df_master['Tienda'].dropna().unique()))
-    tienda = st.sidebar.selectbox("Sucursal / Almacén Ropa", ["Todas las Tiendas"] + tiendas_disponibles)
-
-    df_filtered = df_filtrado_periodo.copy()
-    if tienda != "Todas las Tiendas":
-        df_filtered = df_filtered[df_filtered['Tienda'] == tienda]
-
-    # =========================================================================
-    # --- RENDERIZADO PRINCIPAL DEL DASHBOARD ---
-    # =========================================================================
-    if not df_filtered.empty:
-        
-        # --- BLOQUE 1: RESUMEN COMPARATIVO HISTÓRICO (ÚLTIMAS 4 SEMANAS) ---
-        st.markdown('<p style="color: #555555; font-weight: bold; font-size: 14px; margin-bottom: 10px; letter-spacing: 0.5px;">📋 DESGLOSE COMPARATIVO HISTÓRICO (ÚLTIMAS 4 SEMANAS)</p>', unsafe_allow_html=True)
-        
-        ultimas_4_semanas = sorted(list(df_master['Semana'].unique()))[-4:]
-        cols_semanas = st.columns(len(ultimas_4_semanas))
-        
-        for i, sem in enumerate(ultimas_4_semanas):
-            df_sem = df_master[df_master['Semana'] == sem].copy()
-            if tienda != "Todas las Tiendas":
-                df_sem = df_sem[df_sem['Tienda'] == tienda]
-                
-            t_ing, t_hab, t_ub = df_sem['Total_Ingresos'].sum(), df_sem['Habilitadas'].sum(), df_sem['Ubicadas'].sum()
-            m_rec, r_rec = df_sem['Meta_Rec'].sum(), df_sem['Real_Rec'].sum()
-            
-            pct_hab = (t_hab / t_ing * 100) if t_ing > 0 else 0.0
-            pct_ub = (t_ub / t_ing * 100) if t_ing > 0 else 0.0
-            ef_rec = (r_rec / m_rec * 100) if m_rec > 0 else 0.0
-            
-            with cols_semanas[i]:
-                st.markdown(f'<p class="semana-header">{sem}</p>', unsafe_allow_html=True)
-                st.markdown(f"""
-                    <div class="kpi-card-nested">
-                        <div class="kpi-sub-block"><p class="kpi-label-nested">📥 Total Ingresos</p><p class="kpi-value-nested">{t_ing:,}</p></div>
-                        <div class="kpi-sub-block"><p class="kpi-label-nested">✨ Piezas Habilitadas</p><div class="kpi-value-inline">{t_hab:,}</div><div class="kpi-pct-inline">({pct_hab:.1f}%)</div></div>
-                        <div class="kpi-sub-block"><p class="kpi-label-nested">📍 Piezas Ubicadas</p><div class="kpi-value-inline">{t_ub:,}</div><div class="kpi-pct-inline">({pct_ub:.1f}%)</div></div>
-                        <div class="kpi-sub-block"><p class="kpi-label-nested">🎯 % de Recorridos</p><p class="kpi-value-nested">{ef_rec:.1f}%</p></div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-        # --- SISTEMA DE PESTAÑAS (TABS) PARA AUDITORÍA Y ANÁLISIS ---
-        tab_auditoria, tab_evolutivo = st.tabs(
+        # 6. Agrupación por días de la semana en español evitando duplicados
+        dias_espanol = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "
