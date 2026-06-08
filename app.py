@@ -43,8 +43,8 @@ st.markdown("""
 @st.cache_data(ttl=300)
 def get_operational_data():
     try:
-        # Usamos el enlace de exportación directa alternativo para evitar bloqueos HTML
-        URL_ONEDRIVE = "https://onedrive.live.com/download?resid=11B83163-6E2D-4B29-A4C2-9D0A3BB17B97&authkey=!ADn9v6Y-g3b2e8g"
+        # URL armada correctamente con tu ID público
+        URL_ONEDRIVE = "https://onedrive.live.com/download?resid=11b83163-6E2D-4B29-A4C2-9D0A3BB17B97"
         
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36",
@@ -54,14 +54,11 @@ def get_operational_data():
         response = requests.get(URL_ONEDRIVE, headers=headers, timeout=30)
         response.raise_for_status()
         
-        # Validación crítica: si la respuesta contiene HTML, Microsoft nos está bloqueando el archivo directo
         if b"<html" in response.content.lower() or b"<!doctype html" in response.content.lower():
-            st.sidebar.error("⚠️ OneDrive devolvió una página web en lugar del archivo Excel. Verifica los permisos del enlace.")
+            st.sidebar.error("⚠️ OneDrive devolvió una página web. Verifica que el enlace siga público.")
             return pd.DataFrame()
             
         excel_bytes = io.BytesIO(response.content)
-        
-        # Leemos especificando explícitamente el motor
         df = pd.read_excel(excel_bytes, sheet_name="Checklist", engine="openpyxl")
         
         if df.empty:
@@ -115,13 +112,10 @@ st.markdown('<p class="main-title">👚 PRICE SHOES • Operaciones Ropa</p>', u
 st.markdown('<p class="sub-title">CONTROL DE OPERACIONES ROPA</p>', unsafe_allow_html=True)
 st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:5px; margin-bottom:15px;'>", unsafe_allow_html=True)
 
-# Inicialización segura de la matriz
 df_master = get_operational_data()
 
-# --- VALIDACIÓN PARA EVITAR LA PANTALLA BLANCA ---
 if df_master.empty:
     st.warning("⚠️ No se pudieron procesar los datos de la pestaña 'Checklist' de OneDrive.")
-    st.info("💡 Por favor, verifica que el archivo en tu OneDrive siga estando compartido públicamente para 'Cualquier persona con el enlace' (Rol de Lector).")
 else:
     # =========================================================================
     # --- FILTROS LATERALES (SIDEBAR) ---
@@ -156,7 +150,6 @@ else:
     # =========================================================================
     if not df_filtered.empty:
         
-        # --- BLOQUE 1: RESUMEN COMPARATIVO HISTÓRICO (ÚLTIMAS 4 SEMANAS) ---
         st.markdown('<p style="color: #555555; font-weight: bold; font-size: 14px; margin-bottom: 10px; letter-spacing: 0.5px;">📋 DESGLOSE COMPARATIVO HISTÓRICO (ÚLTIMAS 4 SEMANAS)</p>', unsafe_allow_html=True)
         
         ultimas_4_semanas = sorted(list(df_master['Semana'].unique()))[-4:]
@@ -185,7 +178,6 @@ else:
                     </div>
                     """, unsafe_allow_html=True)
 
-        # --- SISTEMA DE PESTAÑAS (TABS) PARA AUDITORÍA Y ANÁLISIS ---
         tab_auditoria, tab_evolutivo = st.tabs(["🔍 Matriz Operativa de Auditoría", "📈 Reporte de Evolución Intersemanal"])
 
         with tab_auditoria:
@@ -222,31 +214,11 @@ else:
                 df_g2['Porcentaje_Habilitado'] = (df_g2['Habilitadas'] / df_g2['Total_Ingresos'] * 100).fillna(0)
                 
                 fig2 = make_subplots(specs=[[{"secondary_y": True}]])
-                fig2.add_trace(
-                    go.Bar(
-                        x=df_g2[eje_x_dinamico], 
-                        y=df_g2['Porcentaje_Habilitado'], 
-                        name="% Habilitado", 
-                        marker_color='#1F497D', 
-                        text=df_g2['Porcentaje_Habilitado'].map('{:.1f}%'.format), 
-                        textposition='inside'
-                    ), 
-                    secondary_y=False
-                )
-                fig2.add_trace(
-                    go.Scatter(
-                        x=df_g2[eje_x_dinamico], 
-                        y=df_g2['Total_Ingresos'], 
-                        name="Total Ingresos", 
-                        mode='lines+markers', 
-                        line=dict(color='#E6007E', width=3)
-                    ), 
-                    secondary_y=True
-                )
+                fig2.add_trace(go.Bar(x=df_g2[eje_x_dinamico], y=df_g2['Porcentaje_Habilitado'], name="% Habilitado", marker_color='#1F497D', text=df_g2['Porcentaje_Habilitado'].map('{:.1f}%'.format), textposition='inside'), secondary_y=False)
+                fig2.add_trace(go.Scatter(x=df_g2[eje_x_dinamico], y=df_g2['Total_Ingresos'], name="Total Ingresos", mode='lines+markers', line=dict(color='#E6007E', width=3)), secondary_y=True)
                 fig2.update_layout(title_text="<b>Rendimiento: % Habilitado vs Volumen</b>", plot_bgcolor='white', margin=dict(t=40, b=20, l=20, r=20))
                 st.plotly_chart(fig2, use_container_width=True)
 
-            # --- MATRIZ GENERAL DE AUDITORÍA OPERATIVA ---
             st.markdown(f'<p class="graph-title">🔍 Matriz General de Auditoría Operativa {label_corte}</p>', unsafe_allow_html=True)
 
             html_table = """
@@ -264,8 +236,6 @@ else:
                 "Sis_Aduana": "sum", "Muertos": "sum", "Cajas": "sum",
                 "Total_Ingresos": "sum", "Habilitadas": "sum", "Ubicadas": "sum", "Meta_Rec": "sum", "Real_Rec": "sum"
             })
-            
-            # Crear columna Fis_Aduana artificial para compatibilidad de vista si no existe
             df_table["Fis_Aduana"] = 0
             
             if tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses":
@@ -320,10 +290,7 @@ else:
             if tienda != "Todas las Tiendas":
                 df_evolutivo = df_evolutivo[df_evolutivo['Tienda'] == tienda]
 
-            df_metrics_sem = df_evolutivo.groupby("Semana").agg({
-                "Total_Ingresos": "sum", "Habilitadas": "sum", "Ubicadas": "sum", "Meta_Rec": "sum", "Real_Rec": "sum"
-            }).reindex(ultimas_4_semanas)
-
+            df_metrics_sem = df_evolutivo.groupby("Semana").agg({"Total_Ingresos": "sum", "Habilitadas": "sum", "Ubicadas": "sum", "Meta_Rec": "sum", "Real_Rec": "sum"}).reindex(ultimas_4_semanas)
             df_metrics_sem['% Habilitado'] = (df_metrics_sem['Habilitadas'] / df_metrics_sem['Total_Ingresos'] * 100).fillna(0)
             df_metrics_sem['% Recorridos'] = (df_metrics_sem['Real_Rec'] / df_metrics_sem['Meta_Rec'] * 100).fillna(0)
 
