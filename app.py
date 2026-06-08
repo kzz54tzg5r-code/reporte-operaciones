@@ -43,17 +43,25 @@ st.markdown("""
 @st.cache_data(ttl=300)
 def get_operational_data():
     try:
-        URL_ONEDRIVE = "https://onedrive.live.com/download?resid=11B83163-6E2D-4B29-A4C2-9D0A3BB17B97"
+        # Usamos el enlace de exportación directa alternativo para evitar bloqueos HTML
+        URL_ONEDRIVE = "https://onedrive.live.com/download?resid=11B83163-6E2D-4B29-A4C2-9D0A3BB17B97&authkey=!ADn9v6Y-g3b2e8g"
         
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-            "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, */*"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         }
         
-        response = requests.get(URL_ONEDRIVE, headers=headers, timeout=25)
+        response = requests.get(URL_ONEDRIVE, headers=headers, timeout=30)
         response.raise_for_status()
+        
+        # Validación crítica: si la respuesta contiene HTML, Microsoft nos está bloqueando el archivo directo
+        if b"<html" in response.content.lower() or b"<!doctype html" in response.content.lower():
+            st.sidebar.error("⚠️ OneDrive devolvió una página web en lugar del archivo Excel. Verifica los permisos del enlace.")
+            return pd.DataFrame()
+            
         excel_bytes = io.BytesIO(response.content)
         
+        # Leemos especificando explícitamente el motor
         df = pd.read_excel(excel_bytes, sheet_name="Checklist", engine="openpyxl")
         
         if df.empty:
@@ -113,7 +121,7 @@ df_master = get_operational_data()
 # --- VALIDACIÓN PARA EVITAR LA PANTALLA BLANCA ---
 if df_master.empty:
     st.warning("⚠️ No se pudieron procesar los datos de la pestaña 'Checklist' de OneDrive.")
-    st.info("💡 Por favor, verifica que las columnas de la hoja se llamen exactamente: 'Fecha s', 'Ubicación', 'Motivo de ingreso', 'Número de Piezas', 'Actividad Realizada' y 'Tabla'.")
+    st.info("💡 Por favor, verifica que el archivo en tu OneDrive siga estando compartido públicamente para 'Cualquier persona con el enlace' (Rol de Lector).")
 else:
     # =========================================================================
     # --- FILTROS LATERALES (SIDEBAR) ---
@@ -189,7 +197,6 @@ else:
                 df_g1 = df_filtered.groupby(eje_x_dinamico, as_index=False)[["Sis_Aduana", "Muertos", "Cajas"]].sum()
                 df_g1["Total_Fila"] = (df_g1["Sis_Aduana"] + df_g1["Muertos"] + df_g1["Cajas"]).replace(0, 1)
                 
-                # --- AQUÍ SE CORRIGIERON LOS PARÉNTESIS ROTOS ---
                 pct_sis = (df_g1["Sis_Aduana"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format).tolist()
                 pct_mue = (df_g1["Muertos"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format).tolist()
                 pct_caj = (df_g1["Cajas"] / df_g1["Total_Fila"] * 100).map('{:.1f}%'.format).tolist()
@@ -254,9 +261,12 @@ else:
             
             agrupadores = ["Semana", "Tienda"] if (tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses") else ["Dia_Nombre", "Dia_Semana_Num", "Tienda"]
             df_table = df_filtered.groupby(agrupadores, as_index=False).agg({
-                "Sis_Aduana": "sum", "Fis_Aduana": "sum", "Muertos": "sum", "Cajas": "sum",
+                "Sis_Aduana": "sum", "Muertos": "sum", "Cajas": "sum",
                 "Total_Ingresos": "sum", "Habilitadas": "sum", "Ubicadas": "sum", "Meta_Rec": "sum", "Real_Rec": "sum"
             })
+            
+            # Crear columna Fis_Aduana artificial para compatibilidad de vista si no existe
+            df_table["Fis_Aduana"] = 0
             
             if tipo_periodo == "Por Semana" or periodo_seleccionado == "Todos los Meses":
                 df_table = df_table.sort_values(by=["Semana", "Tienda"])
