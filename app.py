@@ -4,20 +4,18 @@ import requests
 import io
 import plotly.graph_objects as go
 
-# Configuración de página
 st.set_page_config(page_title="Price Shoes - Operaciones", layout="wide")
 
-# Estilos CSS para el look de infografía
+# CSS para el look infográfico
 st.markdown("""
     <style>
     .metric-card { background-color: #f8f9fa; border-radius: 10px; padding: 15px; border-left: 5px solid #1F497D; box-shadow: 2px 2px 5px #ccc; }
-    .title-text { font-size: 20px; font-weight: bold; color: #1F497D; }
+    .title-text { font-size: 18px; font-weight: bold; color: #1F497D; }
     </style>
 """, unsafe_allow_html=True)
 
 @st.cache_data(ttl=60)
 def get_operational_data():
-    # ... (Se mantiene la lógica de carga de datos anterior) ...
     try:
         ID_DOCUMENTO = "18jY8e9houYYTgX2TqWwS-clbzGAjbQzi4tjW7wOR2vI"
         URL = f"https://docs.google.com/spreadsheets/d/{ID_DOCUMENTO}/export?format=xlsx"
@@ -32,22 +30,34 @@ def get_operational_data():
                 if "Tienda" in df_temp.iloc[idx].astype(str).values:
                     fila_cabecera = idx
                     break
+            
             df = pd.read_excel(excel_file, sheet_name=nombre_pestana, skiprows=fila_cabecera)
             df.columns = df.columns.str.strip()
+            
+            # --- LIMPIEZA FORZADA DE COLUMNAS ---
+            # Forzamos que las columnas clave sean numéricas, ignorando errores (convierte texto a NaN)
+            cols_to_fix = ['Ingreso Aduana (sistema)', 'Pzas Habilitadas', 'Pzas Ubicadas']
+            for col in cols_to_fix:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+            
             if 'Tienda' in df.columns:
                 df = df[df['Tienda'].notna()]
                 df['Semana'] = nombre_pestana.strip()
                 lista_dataframes.append(df)
+        
         return pd.concat(lista_dataframes, ignore_index=True) if lista_dataframes else pd.DataFrame()
-    except: return pd.DataFrame()
+    except Exception as e:
+        st.error(f"Error en carga: {e}")
+        return pd.DataFrame()
 
 # Interfaz Principal
-st.markdown("# 👚 PRICE SHOES • Reporte de Operaciones")
+st.markdown("# 👚 PRICE SHOES • Dashboard Ejecutivo")
 df = get_operational_data()
 
 if not df.empty:
-    # FILTROS LATERALES
-    st.sidebar.header("Filtros de Operación")
+    # FILTROS
+    st.sidebar.header("Filtros")
     t = st.sidebar.selectbox("Sucursal", ["Todas"] + sorted([str(x) for x in df['Tienda'].unique()]))
     s = st.sidebar.selectbox("Semana", ["Todas"] + sorted(df['Semana'].unique().tolist()))
     
@@ -55,28 +65,25 @@ if not df.empty:
     if t != "Todas": df_f = df_f[df_f['Tienda'] == t]
     if s != "Todas": df_f = df_f[df_f['Semana'] == s]
 
-    # INFOGRAFÍA DE 4 SEMANAS (Resumen arriba)
-    st.subheader("📊 Resumen Ejecutivo: Últimas 4 Semanas")
-    semanas_recientes = sorted(df['Semana'].unique())[-4:]
+    # RESUMEN (INFOGRAFÍA)
+    st.subheader("📊 Resumen: Últimas 4 Semanas")
+    semanas = sorted(df['Semana'].unique())[-4:]
     cols = st.columns(4)
     
-    for i, sem in enumerate(semanas_recientes):
+    for i, sem in enumerate(semanas):
         data = df[df['Semana'] == sem]
-        # Aquí calculamos los indicadores solicitados
+        # Ahora que forzamos la conversión, .sum() funcionará sin error
         ing = data['Ingreso Aduana (sistema)'].sum()
         hab = data['Pzas Habilitadas'].sum()
-        porc_hab = (hab/ing*100) if ing > 0 else 0
         
         with cols[i]:
             st.markdown(f'<div class="metric-card">', unsafe_allow_html=True)
             st.markdown(f'<p class="title-text">{sem}</p>', unsafe_allow_html=True)
             st.metric("Ingresos", f"{int(ing):,}")
-            st.metric("Habilitadas", f"{int(hab):,}", f"{porc_hab:.1f}%")
+            st.metric("Habilitadas", f"{int(hab):,}")
             st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
-    # TABLA DE DATOS
-    st.write("### Detalle Operativo")
     st.dataframe(df_f, use_container_width=True)
 else:
-    st.warning("Conectando con la base de datos...")
+    st.warning("No hay datos disponibles. Verifica tu conexión al Google Sheet.")
