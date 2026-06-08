@@ -1,26 +1,81 @@
-import streamlit as st
+import streamlit as pd
 import pandas as pd
+import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 
-# =========================================================================
-# --- CONFIGURACIÓN DE INTERFAZ GENERAL Y ESTILOS CORPORATIVOS ---
-# =========================================================================
-st.set_page_config(page_title="Price Shoes - Operaciones Ropa", layout="wide", page_icon="👚")
+# Configuración de la página estilo corporativo y ancho total
+st.set_page_config(
+    page_title="Reporte de Operaciones - Ropa",
+    page_icon="👕",
+    layout="wide"
+)
 
-# Inyección de CSS para un entorno corporativo limpio con fondos y tipografías específicas
+# Estilos CSS para entorno corporativo (Fondo gris claro/medio, énfasis azul)
 st.markdown("""
     <style>
-    .reportview-container { background-color: #F4F6F7; }
-    .main-title { color: #1F497D !important; font-family: 'Arial', sans-serif; font-size: 34px !important; font-weight: 800; margin-bottom: 0px; }
-    .sub-title { color: #E6007E !important; font-family: 'Arial', sans-serif; font-size: 15px !important; font-weight: bold; margin-top: -5px; letter-spacing: 0.5px; text-transform: uppercase; }
-    .graph-title { color: #1F497D !important; font-weight: bold; font-size: 18px; margin-top: 35px; margin-bottom: 15px; border-left: 5px solid #1F497D; padding-left: 10px; }
-    
-    /* Estructura de tarjetas semanales compactas */
-    .semana-header { background-color: #1F497D; color: white !important; font-weight: bold; text-align: center; padding: 8px; border-radius: 4px 4px 0 0; font-size: 14px; text-transform: uppercase; margin-bottom: 0px; }
-    .kpi-card-nested { background-color: #FFFFFF; border-left: 1px solid #D9D9D9; border-right: 1px solid #D9D9D9; border-bottom: 1px solid #D9D9D9; border-radius: 0 0 4px 4px; padding: 10px 14px; text-align: center; box-shadow: 0px 4px 6px rgba(0,0,0,0.05); margin-bottom: 15px; }
-    .kpi-sub-block { border-bottom: 1px dashed #E5E7E9; padding: 8px 0; }
-    .kpi-sub-block:last-child { border-bottom: none; }
-    .kpi-label-nested { color: #5D6D7E; font-size: 11px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
-    .kpi-value-nested { color: #1F497D; font-size: 20px; font-weight: bold; margin: 0; }
-    .kpi-value-inline { color: #1F497D; font-size: 20px; font-weight: bold;
+    .main {
+        background-color: #f4f6f9;
+    }
+    h1, h2, h3 {
+        color: #1e3a8a; /* Azul énfasis corporativo */
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .stDataFrame {
+        background-color: #ffffff;
+        border-radius: 5px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Título Principal del Reporte
+st.title("👕 Reporte de Operaciones — Procesos de Ropa")
+st.markdown("Dashboard automatizado para el monitoreo de rendimiento de tiendas, procesamiento de inventario y KPIs logísticos.")
+
+# -----------------------------------------------------------------------------
+# Carga de datos y lógicas solicitadas
+# -----------------------------------------------------------------------------
+
+@st.cache_data
+def cargar_datos():
+    # Intenta cargar el archivo de checklist actualizado
+    try:
+        df = pd.read_csv("Indicadores Cambios y muertos.xlsx - Resultados por Checklist (2).csv")
+        df['Fecha'] = pd.to_datetime(df['Fecha'])
+        
+        # Mapeo de días en español para la agregación solicitada
+        dias_espanol = {
+            'Monday': 'Lunes', 'Tuesday': 'Martes', 'Wednesday': 'Miércoles',
+            'Thursday': 'Jueves', 'Friday': 'Viernes', 'Saturday': 'Sábado', 'Sunday': 'Domingo'
+        }
+        # Crear columna de día de la semana para evitar fechas repetidas en las matrices
+        df['Día Semana'] = df['Fecha'].dt.day_name().map(dias_espanol)
+        
+        # Asegurar orden cronológico de los días de la semana en las agrupaciones
+        orden_dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+        df['Día Semana'] = pd.Categorical(df['Día Semana'], categories=orden_dias, ordered=True)
+        return df
+    except Exception as e:
+        st.error(f"Error al cargar el archivo de Checklist: {e}")
+        return None
+
+@st.cache_data
+def cargar_resumen_semanal():
+    # Intenta cargar la pestaña de resumen semanal (Sem 22)
+    try:
+        df_sem = pd.read_csv("Indicadores Cambios y muertos.xlsx - Sem 22.csv", skiprows=2)
+        # Limpieza básica de filas vacías
+        df_sem = df_sem.dropna(subset=['Tienda'])
+        df_sem = df_sem[df_sem['Tienda'] != 'Subtotal']
+        
+        # Corrección de lógica solicitada: Total ingreso = Aduana Sistema + Muertos + Cajas
+        # Aseguramos que las columnas sean numéricas antes de sumar
+        for col in ['Ingreso Aduana (sistema)', 'Muertos', 'Ingresos Cajas']:
+            if col in df_sem.columns:
+                df_sem[col] = pd.to_numeric(df_sem[col], errors='coerce').fillna(0)
+                
+        df_sem['Total ingresos'] = df_sem['Ingreso Aduana (sistema)'] + df_sem['Muertos'] + df_sem['Ingresos Cajas']
+        return df_sem
+    except Exception as e:
+        # Si falla por formato, creamos un set de datos de estructura dummy basada en tus requerimientos
+        data_dummy = {
+            'Tienda':
