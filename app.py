@@ -38,27 +38,23 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # =========================================================================
-# --- FUENTE DE DATOS OPERATIVOS EN LA NUBE (ONEDRIVE PERSONAL) ---
+# --- FUENTE DE DATOS OPERATIVOS EN LA NUBE (GOOGLE SHEETS MULTI-PESTAÑA) ---
 # =========================================================================
 @st.cache_data(ttl=60)
 def get_operational_data():
     try:
-        # Enlace estructurado con los tokens de tu iframe público mas parámetro anti-caché
-        URL_ONEDRIVE = "https://onedrive.live.com/download?resid=c0f50b99d16ea810&authkey=IQRjMbgRLW4pS6TCnQo7sXuXAfM3rZYeg12V3kjNI2y60cw&nocache=1"
+        # Tu ID de Google Sheets ya integrado
+        ID_DOCUMENTO = "18jY8e9houYYTgX2TqWwS-clbzGAjbQzi4tjW7wOR2vI"
         
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        }
+        # URL que fuerza a Google a exportar el archivo completo como un .xlsx tradicional
+        URL_EXCEL_NUBE = f"https://docs.google.com/spreadsheets/d/{ID_DOCUMENTO}/export?format=xlsx"
         
-        response = requests.get(URL_ONEDRIVE, headers=headers, timeout=30)
+        response = requests.get(URL_EXCEL_NUBE, timeout=30)
         response.raise_for_status()
         
-        if b"<html" in response.content.lower() or b"<!doctype html" in response.content.lower():
-            st.sidebar.error("⚠️ OneDrive devolvió una página web en lugar del archivo Excel crudo.")
-            return pd.DataFrame()
-            
         excel_bytes = io.BytesIO(response.content)
+        
+        # Carga la pestaña específica de tu libro (Ajusta 'Checklist' si es necesario)
         df = pd.read_excel(excel_bytes, sheet_name="Checklist", engine="openpyxl")
         
         if df.empty:
@@ -88,10 +84,10 @@ def get_operational_data():
         df['Meta_Rec'] = 8.0  
         df['Real_Rec'] = df.apply(lambda r: 1.0 if 'recorrido' in str(r.get('Tabla', '')).lower() else 0, axis=1)
         
-        # El total de ingresos se calcula consolidando aduana sistema + muertos + cajas
+        # Regla de negocio: Sumatoria total del ingreso
         df['Total_Ingresos'] = df['Sis_Aduana'] + df['Muertos'] + df['Cajas']
         
-        # Agrupación limpia por nombre de día para evitar redundancia de fechas
+        # Mapeo de días de la semana para ordenación limpia y sin duplicar fechas
         dias_espanol = {0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves", 4: "Viernes", 5: "Sábado", 6: "Domingo"}
         df['Dia_Semana_Num'] = df['Fecha'].dt.dayofweek
         df['Dia_Nombre'] = df['Dia_Semana_Num'].map(dias_espanol)
@@ -117,7 +113,7 @@ st.markdown("<hr style='border: 0; height: 1px; background: #D9D9D9; margin-top:
 df_master = get_operational_data()
 
 if df_master.empty:
-    st.warning("⚠️ Esperando actualización del archivo base en el repositorio o caché activa...")
+    st.warning("⚠️ Cargando datos desde Google Sheets... Si el error persiste, comprueba que el archivo esté compartido en modo 'Cualquier persona con el enlace'.")
 else:
     # =========================================================================
     # --- FILTROS LATERALES (SIDEBAR) ---
