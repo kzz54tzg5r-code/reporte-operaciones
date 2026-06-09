@@ -32,25 +32,27 @@ if not df.empty:
     for i, sem in enumerate(semanas):
         data = df[df['Semana'] == sem]
         
-        # Función segura para obtener sumas
-        def get_safe_sum(keyword):
+        # Función mejorada para limpiar y sumar
+        def get_clean_val(keyword):
             for col in data.columns:
                 if keyword.lower() in col.lower():
-                    return pd.to_numeric(data[col], errors='coerce').sum()
+                    # Convertimos a string, quitamos '%', y convertimos a número
+                    series = data[col].astype(str).str.replace('%', '').str.replace(',', '')
+                    return pd.to_numeric(series, errors='coerce').sum()
             return 0
 
         # Obtener valores
-        ti = get_safe_sum('Total ingresos')
-        th = get_safe_sum('Pzas Habilitadas')
-        tr = get_safe_sum('Recorridos')
-        tu = get_safe_sum('Ubicado')
+        ti = get_clean_val('Total ingresos')
+        th = get_clean_val('Pzas Habilitadas')
+        tr = get_clean_val('Recorridos')
+        tu = get_clean_val('Ubicado')
 
         with cols[i]:
-            st.markdown(f"### {sem.upper()}")
+            st.subheader(sem.upper())
             st.metric("Total Ingresos", f"{int(ti):,}")
             st.metric("Pzas Habilitadas", f"{int(th):,}")
-            # Mostrar porcentajes como números simples si son mayores a 1, o formatear si son decimales
-            st.metric("% Recorridos", f"{tr:.1f}%" if tr <= 100 else f"{tr:.0f}%")
-            st.metric("% Ubicado", f"{tu:.1f}%" if tu <= 100 else f"{tu:.0f}%")
+            # Si el número es mayor a 1, asumimos que es porcentaje entero, si no, decimal
+            st.metric("% Recorridos", f"{tr:.1f}%")
+            st.metric("% Ubicado", f"{tu:.1f}%")
 else:
-    st.warning("No se encontraron datos o el archivo no es accesible. Verifica que la publicación esté activa.")
+    st.warning("No se encontraron datos. Asegúrate de que las hojas contengan 'Sem'.")
